@@ -13,6 +13,10 @@ export const RATE_LIMIT_POLICIES = {
   webhooks: { limit: 'RATE_LIMIT_WEBHOOKS_LIMIT', window: 'RATE_LIMIT_WEBHOOKS_WINDOW_SECONDS' },
   'fake-pay': { limit: 'RATE_LIMIT_FAKE_PAY_LIMIT', window: 'RATE_LIMIT_FAKE_PAY_WINDOW_SECONDS' },
   health: { limit: 'RATE_LIMIT_HEALTH_LIMIT', window: 'RATE_LIMIT_HEALTH_WINDOW_SECONDS' },
+  'public-page': {
+    limit: 'RATE_LIMIT_PUBLIC_PAGE_LIMIT',
+    window: 'RATE_LIMIT_PUBLIC_PAGE_WINDOW_SECONDS',
+  },
 } as const satisfies Record<string, { limit: keyof Env; window: keyof Env }>;
 
 export type RateLimitName = keyof typeof RATE_LIMIT_POLICIES;

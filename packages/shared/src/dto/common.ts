@@ -44,6 +44,7 @@ export const countryCodeSchema = z.string().regex(/^[A-Z]{2}$/);
 export const localeSchema = z.string().trim().min(2).max(35);
 export const timeZoneSchema = z.string().min(1).max(64);
 export const licenceClassSchema = z.string().trim().min(1).max(10);
+export const phoneSchema = z.string().regex(/^\+[1-9]\d{6,14}$/);
 export const latitudeSchema = z.number().min(-90).max(90);
 export const longitudeSchema = z.number().min(-180).max(180);
 export const basisPointsSchema = z.number().int();

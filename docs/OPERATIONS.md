@@ -119,6 +119,7 @@ All are owned by `driveos_definer`, `SET search_path = public, pg_temp`, `REVOKE
 | `billing_count_webhook_failures(since timestamptz)` | `0026_named_definer_functions.sql` | webhook-failure count for the alert probe; non-zero only in a school-less scope |
 | `auth_devices_for_school_members(user_ids uuid[])` | `0026` | push devices of the current school's members, for the notification dispatcher (`ListDevicesForUsersQuery`) |
 | `auth_prune_device(device_id uuid, user_id uuid, seen_before timestamptz)` | `0026` | deletes a member's rejected push device from the worker (`DeviceTokenInvalidated`); no-op when `app.user_id` is set |
+| `school_id_for_public_slug(slug text)` | `0030_public_profiles_rls.sql` | school of a published public page of an active school, for `GET /v1/public/schools/{slug}` (`ResolvePublicSchoolQuery`) |
 
 Migration `0026` also drops the `devices_school_members` (0018) and `devices_school_members_prune` (0025) policies, so `devices` is back to the single `devices_own` policy of SPEC §6.1. The webhook-failure count no longer reads through `app_system`.
 
@@ -336,6 +337,7 @@ Where to see them:
 | `webhooks` | `POST /v1/webhooks/payments/{provider}` | IP + route | 600 / 60 s |
 | `fake-pay` | `/fake-pay/*` | IP + route | 60 / 60 s |
 | `health` | `GET /v1/health` | IP | 600 / 60 s |
+| `public-page` | `GET /v1/public/schools/{slug}` (public enrolment page) | IP + route | 120 / 3600 s |
 
 Login-code issuance has its own limits on top (`AUTH_CODES_*`, enforced by the identity module). Authenticated routes have no per-user rate limit.
 

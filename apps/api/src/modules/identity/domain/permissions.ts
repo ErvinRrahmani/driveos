@@ -66,6 +66,9 @@ export const PERMISSIONS = [
   'slot_offers.manage',
   'slot_offers.accept',
   'sync.use',
+  'public_page.manage',
+  'reviews.moderate',
+  'reviews.submit',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -122,6 +125,7 @@ const OFFICE: Permission[] = [
   'chat.read_all',
   'waiting_list.manage',
   'slot_offers.manage',
+  'reviews.moderate',
 ];
 
 const INSTRUCTOR: Permission[] = [
@@ -166,6 +170,7 @@ const STUDENT: Permission[] = [
   'chat.use',
   'waiting_list.manage.own',
   'slot_offers.accept',
+  'reviews.submit',
 ];
 
 const PARENT: Permission[] = [

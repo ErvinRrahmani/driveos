@@ -17,6 +17,8 @@ const SPEC_EVENTS = {
     'BranchChanged',
     'VehicleChanged',
     'PaymentAccountConnected',
+    'ReviewSubmitted',
+    'ReviewModerated',
   ],
   training: [
     'StudentCreated',

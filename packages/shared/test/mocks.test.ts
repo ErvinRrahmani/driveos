@@ -99,7 +99,7 @@ async function call(
 
 async function requestFor(route: MockRoute, token: string) {
   let path = route.path;
-  const params: Record<string, string> = { provider: 'fake' };
+  const params: Record<string, string> = { provider: 'fake', slug: 'fahrschule-spree' };
   if (route.operationId === 'acceptInvitation') {
     const created = await call('POST', '/v1/invitations', {
       token,

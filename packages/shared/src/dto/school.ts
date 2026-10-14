@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import {
+  amountMinorSchema,
   countryCodeSchema,
   currencySchema,
+  dateTimeSchema,
   hasSomeField,
   latitudeSchema,
   licenceClassSchema,
@@ -9,13 +11,21 @@ import {
   localTimeSchema,
   longitudeSchema,
   NO_FIELDS_MESSAGE,
+  minutesSchema,
   pageQuerySchema,
   pageResponseSchema,
+  phoneSchema,
   booleanQuerySchema,
   timeZoneSchema,
   weekdaySchema,
 } from './common.js';
-import { paymentAccountStatusSchema, schoolStatusSchema, transmissionSchema } from './enums.js';
+import {
+  paymentAccountStatusSchema,
+  priceItemKindSchema,
+  reviewStatusSchema,
+  schoolStatusSchema,
+  transmissionSchema,
+} from './enums.js';
 import { membershipRoleSchema, membershipStatusSchema } from './identity.js';
 
 export const paymentAccountSchema = z.object({
@@ -186,3 +196,125 @@ export const connectPaymentAccountResponseSchema = z.object({
   onboardingUrl: z.url().nullable(),
 });
 export type ConnectPaymentAccountResponse = z.infer<typeof connectPaymentAccountResponseSchema>;
+
+const httpsUrl = (max: number) => z.url({ protocol: /^https$/ }).max(max);
+
+const publicProfileFields = {
+  slug: z.string().trim().min(3).max(40),
+  published: z.boolean(),
+  headline: z.string().trim().max(120).nullable(),
+  description: z.string().trim().max(2000).nullable(),
+  phone: phoneSchema.nullable(),
+  whatsappNumber: phoneSchema.nullable(),
+  instagramUrl: httpsUrl(300).nullable(),
+  facebookUrl: httpsUrl(300).nullable(),
+  externalReviewUrl: httpsUrl(500).nullable(),
+  showPrices: z.boolean(),
+  showInstructors: z.boolean(),
+};
+
+export const publicProfileSchema = z.object({
+  ...publicProfileFields,
+  version: z.number().int().positive(),
+});
+export type PublicProfile = z.infer<typeof publicProfileSchema>;
+
+export const updatePublicProfileRequestSchema = z
+  .strictObject(publicProfileFields)
+  .partial()
+  .refine(hasSomeField, { message: NO_FIELDS_MESSAGE });
+export type UpdatePublicProfileRequest = z.infer<typeof updatePublicProfileRequestSchema>;
+
+const ratingSchema = z.number().int().min(1).max(5);
+
+/** Version of the consent text the public enrolment form shows (i18n `publicPage.consent.v1`). */
+export const LEAD_CONSENT_TEXT_VERSION = 'lead-consent.v1';
+
+export const publicSchoolPageSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  headline: z.string().nullable(),
+  description: z.string().nullable(),
+  address: z.string(),
+  phone: z.string().nullable(),
+  whatsappUrl: z.url().nullable(),
+  instagramUrl: z.url().nullable(),
+  facebookUrl: z.url().nullable(),
+  externalReviewUrl: z.url().nullable(),
+  timeZone: timeZoneSchema,
+  currency: currencySchema,
+  locale: localeSchema,
+  branches: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      address: z.string(),
+      lat: latitudeSchema,
+      lng: longitudeSchema,
+      openingHours: z.array(
+        z.object({ weekday: weekdaySchema, opens: localTimeSchema, closes: localTimeSchema }),
+      ),
+    }),
+  ),
+  prices: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      kind: priceItemKindSchema,
+      amountMinor: amountMinorSchema,
+      currency: currencySchema,
+      creditMinutes: minutesSchema.nullable(),
+    }),
+  ),
+  instructors: z.array(z.object({ membershipId: z.uuid(), name: z.string() })),
+  reviews: z.object({
+    count: z.number().int().nonnegative(),
+    averageRatingTenths: z.number().int().min(0).max(50),
+    items: z.array(
+      z.object({
+        id: z.uuid(),
+        displayName: z.string(),
+        rating: ratingSchema,
+        text: z.string().nullable(),
+        submittedAt: dateTimeSchema,
+      }),
+    ),
+  }),
+  licenceClasses: z.array(licenceClassSchema),
+  consentTextVersion: z.string(),
+});
+export type PublicSchoolPage = z.infer<typeof publicSchoolPageSchema>;
+
+export const publicSlugParamsSchema = z.object({ slug: z.string().trim().min(3).max(40) });
+export type PublicSlugParams = z.infer<typeof publicSlugParamsSchema>;
+
+export const reviewSchema = z.object({
+  id: z.uuid(),
+  studentId: z.uuid(),
+  displayName: z.string(),
+  rating: ratingSchema,
+  text: z.string().nullable(),
+  status: reviewStatusSchema,
+  submittedAt: dateTimeSchema,
+  moderatedAt: dateTimeSchema.nullable(),
+});
+export type Review = z.infer<typeof reviewSchema>;
+
+export const submitReviewRequestSchema = z.strictObject({
+  rating: ratingSchema,
+  text: z.string().trim().max(600).optional(),
+});
+export type SubmitReviewRequest = z.infer<typeof submitReviewRequestSchema>;
+
+export const listReviewsQuerySchema = pageQuerySchema.extend({
+  status: reviewStatusSchema.optional(),
+});
+export type ListReviewsQuery = z.infer<typeof listReviewsQuerySchema>;
+
+export const reviewListResponseSchema = pageResponseSchema(reviewSchema);
+export type ReviewListResponse = z.infer<typeof reviewListResponseSchema>;
+
+export const moderateReviewRequestSchema = z.strictObject({
+  status: reviewStatusSchema.extract(['approved', 'hidden']),
+});
+export type ModerateReviewRequest = z.infer<typeof moderateReviewRequestSchema>;

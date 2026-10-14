@@ -17,6 +17,8 @@ export const SPEC_TABLES = {
     'branches',
     'vehicles',
     'school_payment_accounts',
+    'school_public_profiles',
+    'school_reviews',
   ],
   scheduling: [
     'lesson_types',

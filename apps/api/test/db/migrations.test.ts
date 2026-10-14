@@ -23,7 +23,7 @@ describe('migrations on an empty database', () => {
       `select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );
     expect(rows.map((r) => r.tablename)).toEqual(ALL_TABLES);
-    expect(ALL_TABLES).toHaveLength(72);
+    expect(ALL_TABLES).toHaveLength(74);
   });
 
   it('makes driveos_owner the owner of every table', async () => {
@@ -124,6 +124,8 @@ describe('migrations on an empty database', () => {
         'platform_statements USING btree (school_id, month)',
         'refresh_tokens USING btree (token_hash)',
         'school_payment_accounts USING btree (school_id, provider)',
+        'school_public_profiles USING btree (slug)',
+        'school_reviews USING btree (student_id)',
         'student_instructors USING btree (student_id) WHERE (is_primary AND (unassigned_at IS NULL))',
         'student_instructors USING btree (student_id, instructor_membership_id) WHERE (unassigned_at IS NULL)',
         'students USING btree (school_id, user_id) WHERE (user_id IS NOT NULL)',

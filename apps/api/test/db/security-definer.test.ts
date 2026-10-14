@@ -51,6 +51,7 @@ const FUNCTIONS = [
     args: 'device_id uuid, user_id uuid, seen_before timestamp with time zone',
     result: 'void',
   },
+  { name: 'school_id_for_public_slug', args: 'slug text', result: 'uuid' },
 ];
 
 const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle');
@@ -704,6 +705,52 @@ describe('SECURITY DEFINER functions', () => {
 
     it('returns zero inside a school scope', async () => {
       expect(await count({ schoolId: a.schoolId }, new Date('2026-05-01T07:00:00Z'))).toBe(0);
+    });
+  });
+
+  describe('school_id_for_public_slug', () => {
+    let suspended: SchoolFixture;
+
+    const resolve = (slug: string, tenant: { schoolId?: string } = {}) =>
+      inTransaction(app, tenant, async () => {
+        const { rows } = await app.query<{ v: string | null }>(
+          `select school_id_for_public_slug($1) as v`,
+          [slug],
+        );
+        return rows[0]?.v ?? null;
+      });
+
+    const profile = (school: SchoolFixture, slug: string, published: boolean) =>
+      admin.query(
+        `insert into school_public_profiles (school_id, slug, published) values ($1, $2, $3)`,
+        [school.schoolId, slug, published],
+      );
+
+    beforeAll(async () => {
+      suspended = await createSchoolFixture(admin);
+      await admin.query(`update schools set status = 'suspended' where id = $1`, [
+        suspended.schoolId,
+      ]);
+      await profile(a, 'school-a-page', true);
+      await profile(b, 'school-b-draft', false);
+      await profile(suspended, 'suspended-page', true);
+    });
+
+    it('returns the school of a published profile of an active school, from a school-less scope', async () => {
+      expect(await resolve('school-a-page')).toBe(a.schoolId);
+      expect(await resolve('school-a-page', { schoolId: b.schoolId })).toBe(a.schoolId);
+    });
+
+    it('returns null for an unpublished profile', async () => {
+      expect(await resolve('school-b-draft')).toBeNull();
+    });
+
+    it('returns null for a suspended school', async () => {
+      expect(await resolve('suspended-page')).toBeNull();
+    });
+
+    it('returns null for an unknown slug', async () => {
+      expect(await resolve('no-such-school')).toBeNull();
     });
   });
 });

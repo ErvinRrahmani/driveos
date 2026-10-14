@@ -111,7 +111,7 @@ idempotent by event id (`event_deliveries`); projections also skip stale `aggreg
 | Module | Emits | Consumes |
 | --- | --- | --- |
 | identity | `InvitationCreated`, `MembershipCreated`, `MembershipRolesChanged`, `MembershipPermissionsChanged`, `MembershipDisabled` | `identity.permission-cache` ← `MembershipPermissionsChanged`; `identity.guardian-consent` ← `GuardianConsentGiven`; `identity.device-token-pruning` ← `DeviceTokenInvalidated` |
-| school | `SchoolCreated`, `SchoolSettingsChanged`, `BranchChanged`, `VehicleChanged`, `PaymentAccountConnected` | — |
+| school | `SchoolCreated`, `SchoolSettingsChanged`, `BranchChanged`, `VehicleChanged`, `PaymentAccountConnected`, `ReviewSubmitted`, `ReviewModerated` | `school.review-anonymizer` ← `StudentAnonymized` |
 | platform | `SupportSessionStarted`, `SupportSessionEnded`, `SubscriptionChanged` | — |
 | scheduling | `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `AvailabilityChanged`, `TimeOffAdded`, `WaitingListJoined`, `SlotOfferCreated`, `SlotOfferAccepted`, `SlotOfferExpired` | `scheduling.change-feed` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `VehicleChanged`, `AvailabilityChanged`, `TimeOffAdded`; `scheduling.lesson-reminders` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`; `scheduling.slot-offers-from-cancellations` ← `LessonCancelled` |
 | training | `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `GuardianLinked`, `GuardianConsentGiven`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded` | `training.membership-student-link` ← `MembershipCreated`, `MembershipRolesChanged`; `training.student-list` ← `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded`, `LedgerEntryRecorded`, `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow` |
@@ -127,7 +127,9 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 `QuestionPackPublished`, `PaymentFailed`, `EntitlementGranted`, `CreditNoteIssued`,
 `PlatformChargeCreated`, `WaitingListJoined`, `DocumentUploaded`, `ContractSigned`,
 `ContractCompleted`, `SchoolCreated`,
-`SchoolSettingsChanged`, `BranchChanged`, `PaymentAccountConnected` or the platform events yet.
+`SchoolSettingsChanged`, `BranchChanged`, `PaymentAccountConnected`, `ReviewSubmitted`,
+`ReviewModerated` or the platform events yet. The school module also consumes training's
+`StudentAnonymized` (enrolment page design §4.3).
 
 ### identity (owned by step 3a)
 
@@ -161,15 +163,51 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 
 ### school
 
-- Nest: `SchoolModule`.
+- Nest: `SchoolModule`, `SchoolWorkerModule`.
 - Commands: `ProvisionSchoolCommand`, `UpdateSchoolCommand`, `UpdateSchoolSettingsCommand`,
   `ReplaceOpeningHoursCommand`, `CreateBranchCommand`, `UpdateBranchCommand`, `CreateVehicleCommand`,
   `UpdateVehicleCommand`, `ConnectPaymentAccountCommand`.
+- Enrolment page commands: `UpdatePublicProfileCommand(actor, body) → { id: schoolId, version }`
+  (`PUT /v1/school/public-profile`, `public_page.manage`; creates the profile on first save, which
+  needs `slug`, else changes only the given fields; slug rules in `domain/slug.ts` → `400
+  validation_error`; another school's slug → `409 slug_taken`; publishing, or saving while
+  published, without the `enrolment_page` plan feature → `403 feature_not_in_plan`; no event),
+  `SubmitReviewCommand(actor, body) → { id, version: 1 }` (`POST /v1/reviews`, `reviews.submit`;
+  the student is training `GetStudentByUserQuery(actor.userId)`, `404` without one; training
+  `HasPassedPracticalQuery` false → `403 review_not_available`; second review → `409 review_exists`;
+  `displayName` = first name + last initial, fixed at submit), `ModerateReviewCommand(actor,
+  reviewId, { status: approved | hidden })` (`PATCH /v1/reviews/{id}`, `reviews.moderate`),
+  `DeleteStudentReviewCommand(studentId) → void` (deletes the student's review; used by the worker
+  subscriber `school.review-anonymizer` ← `StudentAnonymized`; registered in the API and the
+  worker).
 - Queries: `GetSchoolQuery`, `GetSchoolSettingsQuery`, `GetOpeningHoursQuery`, `GetPaymentAccountQuery`,
   `ListBranchesQuery`, `GetMissingBranchIdsQuery` (ids that are not branches of the current school),
   `GetVehicleQuery`, `ListVehiclesQuery`, `ListStaffQuery`.
+- Enrolment page queries: `GetPublicProfileQuery → PublicProfile | null` (current school; registered
+  in the API and the worker; `GET /v1/school/public-profile` answers `404` while it is null),
+  `ListReviewsQuery({ status?, cursor?, limit })` (`GET /v1/reviews`, `reviews.moderate`, newest
+  first, cursor = review id), `ResolvePublicSchoolQuery(slug) → schoolId` (**execute it in a
+  school-less scope**, `runInTenant({ schoolId: null, userId: null })`: it calls the SECURITY
+  DEFINER function `school_id_for_public_slug(slug text) returns uuid` (migration 0030; published
+  profile of an `active` school only), then checks platform `SchoolHasFeatureQuery('enrolment_page')`
+  inside `enterSchool`; unknown, unpublished, inactive or no feature → `404 school_not_found`; the
+  public lead route reuses it), `GetPublicSchoolPageQuery → PublicSchoolPage` (run in
+  `runInTenant({ schoolId, userId: null })` after resolving; composes the profile, school, branches
+  with opening hours (own hours, else school-wide), billing `ListPublicPriceItemsQuery` when
+  `showPrices`, active instructors' names via `MembershipDirectory` when `showInstructors`, the
+  newest 20 approved reviews with count and average (`averageRatingTenths`), the distinct licence
+  classes of active lesson types via scheduling `ListLessonTypesQuery`, and
+  `consentTextVersion = LEAD_CONSENT_TEXT_VERSION` (`lead-consent.v1`)).
+- Public route: `GET /v1/public/schools/{slug}` (`@Public()`, rate limit `public-page` 120 per IP
+  per hour, `Cache-Control: public, max-age=60`); `PublicSchoolController` → `PublicPages.render`
+  (`infra/public-pages.ts`: `ResolvePublicSchoolQuery` in a school-less transaction, then
+  `GetPublicSchoolPageQuery` in the school's).
 - Emits: `SchoolCreated`, `SchoolSettingsChanged`, `BranchChanged`, `VehicleChanged`,
-  `PaymentAccountConnected`.
+  `PaymentAccountConnected`, `ReviewSubmitted` v1 `{ reviewId, studentId, rating, submittedAt }`,
+  `ReviewModerated` v1 `{ reviewId, status, moderatedAt }` (aggregate `school_review`, id = review
+  id).
+- Consumes: `StudentAnonymized` (worker subscriber `school.review-anonymizer`: deletes the student's
+  review; idempotent).
 
 ### platform
 

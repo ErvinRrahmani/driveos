@@ -45,22 +45,35 @@ const identity: SpecRoute[] = [
   ...group('devices', false, [['POST', '/v1/devices', StatusCodes.CREATED]]),
 ];
 
-const school = group('school', false, [
-  ['GET', '/v1/school', StatusCodes.OK],
-  ['PATCH', '/v1/school', StatusCodes.OK],
-  ['GET', '/v1/school/settings', StatusCodes.OK],
-  ['PATCH', '/v1/school/settings', StatusCodes.OK],
-  ['GET', '/v1/school/opening-hours', StatusCodes.OK],
-  ['PUT', '/v1/school/opening-hours', StatusCodes.OK],
-  ['GET', '/v1/branches', StatusCodes.OK],
-  ['POST', '/v1/branches', StatusCodes.CREATED],
-  ['PATCH', '/v1/branches/{id}', StatusCodes.OK],
-  ['GET', '/v1/vehicles', StatusCodes.OK],
-  ['POST', '/v1/vehicles', StatusCodes.CREATED],
-  ['PATCH', '/v1/vehicles/{id}', StatusCodes.OK],
-  ['GET', '/v1/staff', StatusCodes.OK],
-  ['POST', '/v1/school/payment-account', StatusCodes.OK],
-]);
+const school = [
+  ...group('school', false, [
+    ['GET', '/v1/school', StatusCodes.OK],
+    ['PATCH', '/v1/school', StatusCodes.OK],
+    ['GET', '/v1/school/settings', StatusCodes.OK],
+    ['PATCH', '/v1/school/settings', StatusCodes.OK],
+    ['GET', '/v1/school/opening-hours', StatusCodes.OK],
+    ['PUT', '/v1/school/opening-hours', StatusCodes.OK],
+    ['GET', '/v1/branches', StatusCodes.OK],
+    ['POST', '/v1/branches', StatusCodes.CREATED],
+    ['PATCH', '/v1/branches/{id}', StatusCodes.OK],
+    ['GET', '/v1/vehicles', StatusCodes.OK],
+    ['POST', '/v1/vehicles', StatusCodes.CREATED],
+    ['PATCH', '/v1/vehicles/{id}', StatusCodes.OK],
+    ['GET', '/v1/staff', StatusCodes.OK],
+    ['POST', '/v1/school/payment-account', StatusCodes.OK],
+  ]),
+  // Enrolment page (design 2026-10-14 §5): the public page and its settings, and reviews.
+  ...group('school', false, [
+    ['GET', '/v1/school/public-profile', StatusCodes.OK],
+    ['PUT', '/v1/school/public-profile', StatusCodes.OK],
+    ['GET', '/v1/public/schools/{slug}', StatusCodes.OK],
+  ]),
+  ...group('reviews', false, [
+    ['POST', '/v1/reviews', StatusCodes.CREATED],
+    ['GET', '/v1/reviews', StatusCodes.OK],
+    ['PATCH', '/v1/reviews/{id}', StatusCodes.OK],
+  ]),
+];
 
 const scheduling = [
   ...group('scheduling', false, [

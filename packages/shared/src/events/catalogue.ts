@@ -43,6 +43,8 @@ import {
 import {
   BranchChanged,
   PaymentAccountConnected,
+  ReviewModerated,
+  ReviewSubmitted,
   SchoolCreated,
   SchoolSettingsChanged,
   VehicleChanged,
@@ -72,6 +74,8 @@ export const EVENT_CATALOGUE = [
   BranchChanged,
   VehicleChanged,
   PaymentAccountConnected,
+  ReviewSubmitted,
+  ReviewModerated,
   StudentCreated,
   StudentEnrolled,
   StudentArchived,

@@ -22,6 +22,8 @@ const NO_TENANT_DATA_ROUTES: readonly RegExp[] = [
   /^GET \/v1\/health$/,
   /^POST \/v1\/auth\/(code|verify|refresh|logout)$/,
   /^POST \/v1\/webhooks\/payments\/:provider$/,
+  // Published page data only, resolved by slug through school_id_for_public_slug (design §5.1).
+  /^GET \/v1\/public\/schools\/:slug$/,
   /^(GET|POST) \/fake-pay\//,
   /^GET \/docs/,
   /^GET \/v1\/me$/,

@@ -4,7 +4,10 @@ import {
   createBranchRequestSchema,
   createVehicleRequestSchema,
   listVehiclesQuerySchema,
+  moderateReviewRequestSchema,
   pageQuerySchema,
+  submitReviewRequestSchema,
+  updatePublicProfileRequestSchema,
   replaceOpeningHoursRequestSchema,
   updateSchoolRequestSchema,
   updateSchoolSettingsRequestSchema,
@@ -96,5 +99,40 @@ describe('POST /v1/school/payment-account', () => {
   it('takes a provider name', () => {
     expect(ok(connectPaymentAccountRequestSchema, { provider: 'fake' })).toBe(true);
     expect(ok(connectPaymentAccountRequestSchema, {})).toBe(false);
+  });
+});
+
+describe('PUT /v1/school/public-profile', () => {
+  it('needs at least one field and accepts nulls to clear optional ones', () => {
+    expect(ok(updatePublicProfileRequestSchema, {})).toBe(false);
+    expect(ok(updatePublicProfileRequestSchema, { headline: null, phone: null })).toBe(true);
+    expect(ok(updatePublicProfileRequestSchema, { slug: 'abc', extra: 1 })).toBe(false);
+  });
+
+  it('takes E.164 phone numbers and https links only', () => {
+    expect(ok(updatePublicProfileRequestSchema, { whatsappNumber: '+355691234567' })).toBe(true);
+    expect(ok(updatePublicProfileRequestSchema, { whatsappNumber: '0691234567' })).toBe(false);
+    expect(ok(updatePublicProfileRequestSchema, { phone: '+0123456789' })).toBe(false);
+    expect(ok(updatePublicProfileRequestSchema, { facebookUrl: 'https://fb.com/x' })).toBe(true);
+    expect(ok(updatePublicProfileRequestSchema, { facebookUrl: 'http://fb.com/x' })).toBe(false);
+    expect(ok(updatePublicProfileRequestSchema, { headline: 'x'.repeat(121) })).toBe(false);
+  });
+});
+
+describe('reviews', () => {
+  it('takes a 1–5 rating and optional text of at most 600 characters', () => {
+    expect(submitReviewRequestSchema.parse({ rating: 5, text: '  Great  ' })).toEqual({
+      rating: 5,
+      text: 'Great',
+    });
+    expect(ok(submitReviewRequestSchema, { rating: 0 })).toBe(false);
+    expect(ok(submitReviewRequestSchema, { rating: 4.5 })).toBe(false);
+    expect(ok(submitReviewRequestSchema, { rating: 5, text: 'x'.repeat(601) })).toBe(false);
+  });
+
+  it('moderates to approved or hidden only', () => {
+    expect(ok(moderateReviewRequestSchema, { status: 'approved' })).toBe(true);
+    expect(ok(moderateReviewRequestSchema, { status: 'hidden' })).toBe(true);
+    expect(ok(moderateReviewRequestSchema, { status: 'pending' })).toBe(false);
   });
 });

@@ -28,6 +28,10 @@ export const ROUTE_ALLOWLIST: RouteAllowlist = {
     reason: 'public',
     note: 'payment provider webhook: authenticated by the provider signature, school resolved via SECURITY DEFINER billing_school_for_payment (SPEC §6.2)',
   },
+  'GET /v1/public/schools/:slug': {
+    reason: 'public',
+    note: 'public enrolment page: school resolved via SECURITY DEFINER school_id_for_public_slug; only published data',
+  },
   'GET /fake-pay/:ref': {
     reason: 'public',
     note: 'dev/test fake payment page (404 in production); shows only the amount of a fake checkout reference',

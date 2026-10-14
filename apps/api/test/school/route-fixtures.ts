@@ -1,4 +1,7 @@
 import { expect } from 'vitest';
+import { newId } from '../../src/kernel/db/columns.js';
+import { schoolReviews } from '../../src/modules/school/infra/schema.js';
+import { students } from '../../src/modules/training/infra/schema.js';
 import {
   expectListResponse,
   type FixtureContext,
@@ -35,6 +38,41 @@ async function openingHoursOfA(ctx: FixtureContext): Promise<string[]> {
     .send({ items: [{ branchId, weekday: 1, opens: '08:00', closes: '18:00' }] });
   expect(res.status).toBe(StatusCodes.OK);
   return [branchId, ...res.body.items.map((item: { id: string }) => item.id)];
+}
+
+async function publicProfileOfA(ctx: FixtureContext): Promise<string> {
+  const slug = `fixture-a-${newId().slice(-12)}`;
+  const res = await ctx.request
+    .put('/v1/school/public-profile')
+    .set(ctx.auth(ctx.A))
+    .send({ slug, headline: 'School A page' });
+  expect(res.status).toBe(StatusCodes.OK);
+  return slug;
+}
+
+async function reviewOfA(ctx: FixtureContext): Promise<string[]> {
+  const studentId = newId();
+  const reviewId = newId();
+  await ctx.tenants.asSchool(ctx.A, async (tx) => {
+    await tx.insert(students).values({
+      id: studentId,
+      schoolId: ctx.A.schoolId,
+      fullName: 'Fixture Student',
+      dateOfBirth: '2000-01-01',
+      licenceClass: 'B',
+      examLanguage: 'en',
+      status: 'active',
+    });
+    await tx.insert(schoolReviews).values({
+      id: reviewId,
+      schoolId: ctx.A.schoolId,
+      studentId,
+      rating: 5,
+      displayName: 'Fixture S.',
+      submittedAt: new Date(),
+    });
+  });
+  return [reviewId, studentId];
 }
 
 const ownSchool = (res: { status: number; body: { id?: string } }, ctx: FixtureContext) => {
@@ -113,6 +151,41 @@ export const schoolFixtures: RouteFixtures = {
     },
   },
   'GET /v1/staff': { expect: expectListResponse('items') },
+  'GET /v1/school/public-profile': {
+    // B sees its own profile (if the PUT fixture already saved one) or 404; never A's slug.
+    setup: async (ctx) => ({ aIds: [await publicProfileOfA(ctx)] }),
+    expect: (res) => {
+      expect([StatusCodes.OK, StatusCodes.NOT_FOUND]).toContain(res.status);
+    },
+  },
+  'PUT /v1/school/public-profile': {
+    setup: async (ctx) => {
+      const slug = await publicProfileOfA(ctx);
+      return {
+        body: { slug: `fixture-b-${newId().slice(-12)}`, headline: 'Taken by B' },
+        aIds: [slug],
+      };
+    },
+    expect: async (res, ctx, req) => {
+      expect(res.status).toBe(StatusCodes.OK);
+      expect(res.body.id).toBe(ctx.B.schoolId);
+      const a = await ctx.request.get('/v1/school/public-profile').set(ctx.auth(ctx.A));
+      expect(a.body).toMatchObject({ slug: req.aIds?.[0], headline: 'School A page' });
+    },
+  },
+  'POST /v1/reviews': {
+    setup: async (ctx) => ({ body: { rating: 5 }, aIds: await reviewOfA(ctx) }),
+  },
+  'GET /v1/reviews': {
+    setup: async (ctx) => ({ aIds: await reviewOfA(ctx) }),
+    expect: expectListResponse('items'),
+  },
+  'PATCH /v1/reviews/:id': {
+    setup: async (ctx) => {
+      const [reviewId = '', studentId = ''] = await reviewOfA(ctx);
+      return { params: { id: reviewId }, body: { status: 'hidden' }, aIds: [studentId] };
+    },
+  },
   'POST /v1/school/payment-account': {
     setup: async (ctx) => {
       const res = await ctx.request

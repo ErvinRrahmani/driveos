@@ -1,5 +1,7 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   doublePrecision,
   integer,
   pgEnum,
@@ -10,7 +12,7 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { id, timestamps } from '../../../kernel/db/columns.js';
+import { id, timestamps, tstz } from '../../../kernel/db/columns.js';
 
 export const schoolsStatus = pgEnum('schools_status', ['onboarding', 'active', 'suspended']);
 
@@ -102,4 +104,48 @@ export const schoolPaymentAccounts = pgTable(
     ...timestamps(),
   },
   (t) => [unique('school_payment_accounts_school_provider_key').on(t.schoolId, t.provider)],
+);
+
+export const schoolPublicProfiles = pgTable('school_public_profiles', {
+  schoolId: schoolId().primaryKey(),
+  slug: text('slug').notNull().unique('school_public_profiles_slug_key'),
+  published: boolean('published').notNull().default(false),
+  headline: text('headline'),
+  description: text('description'),
+  phone: text('phone'),
+  whatsappNumber: text('whatsapp_number'),
+  instagramUrl: text('instagram_url'),
+  facebookUrl: text('facebook_url'),
+  externalReviewUrl: text('external_review_url'),
+  showPrices: boolean('show_prices').notNull().default(true),
+  showInstructors: boolean('show_instructors').notNull().default(true),
+  version: integer('version').notNull().default(1),
+  ...timestamps(),
+});
+
+export const schoolReviewsStatus = pgEnum('school_reviews_status', [
+  'pending',
+  'approved',
+  'hidden',
+]);
+
+// student_id references students(id); the FK is added in the custom migration so this schema does
+// not import the training module's tables.
+export const schoolReviews = pgTable(
+  'school_reviews',
+  {
+    id: id(),
+    schoolId: schoolId(),
+    studentId: uuid('student_id').notNull().unique('school_reviews_student_key'),
+    rating: smallint('rating').notNull(),
+    text: text('text'),
+    displayName: text('display_name').notNull(),
+    status: schoolReviewsStatus('status').notNull().default('pending'),
+    submittedAt: tstz('submitted_at').notNull(),
+    moderatedAt: tstz('moderated_at'),
+    moderatedByUserId: uuid('moderated_by_user_id'),
+    version: integer('version').notNull().default(1),
+    ...timestamps(),
+  },
+  (t) => [check('school_reviews_rating_check', sql`${t.rating} between 1 and 5`)],
 );

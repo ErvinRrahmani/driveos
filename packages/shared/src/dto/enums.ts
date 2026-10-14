@@ -6,6 +6,9 @@ export type SchoolStatus = z.infer<typeof schoolStatusSchema>;
 export const paymentAccountStatusSchema = z.enum(['pending', 'active', 'disabled']);
 export type PaymentAccountStatus = z.infer<typeof paymentAccountStatusSchema>;
 
+export const reviewStatusSchema = z.enum(['pending', 'approved', 'hidden']);
+export type ReviewStatus = z.infer<typeof reviewStatusSchema>;
+
 export const transmissionSchema = z.enum(['manual', 'automatic']);
 export type Transmission = z.infer<typeof transmissionSchema>;
 

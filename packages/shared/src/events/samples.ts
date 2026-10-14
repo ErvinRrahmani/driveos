@@ -106,6 +106,17 @@ export const EVENT_SAMPLES: EventPayloadByType = {
     accountRef: 'acct_fake_spree',
     status: 'active',
   },
+  ReviewSubmitted: {
+    reviewId: ids.review,
+    studentId: ids.student,
+    rating: 5,
+    submittedAt: '2026-10-02T15:00:00.000Z',
+  },
+  ReviewModerated: {
+    reviewId: ids.review,
+    status: 'approved',
+    moderatedAt: '2026-10-03T08:00:00.000Z',
+  },
   StudentCreated: {
     studentId: ids.student,
     userId: ids.studentUser,
