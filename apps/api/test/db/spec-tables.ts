@@ -67,6 +67,7 @@ export const SPEC_TABLES = {
     'rm_metric_sources',
     'rm_instructor_availability',
     'rm_instructor_time_off',
+    'rm_lead_students',
     'growth_reports',
   ],
   platform: ['plans', 'subscriptions', 'support_sessions', 'audit_log'],

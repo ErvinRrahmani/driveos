@@ -34,10 +34,22 @@ export const rmSchoolMetricsDaily = pgTable(
     instructorMinutesAvailable: integer('instructor_minutes_available').notNull(),
     instructorMinutesBooked: integer('instructor_minutes_booked').notNull(),
     lessonsDue: integer('lessons_due').notNull().default(0),
+    leadsCaptured: integer('leads_captured').notNull().default(0),
+    leadsConverted: integer('leads_converted').notNull().default(0),
+    leadRevenueMinor: minor('lead_revenue_minor').notNull().default(0),
     ...timestamps(),
   },
   (t) => [primaryKey({ name: 'rm_school_metrics_daily_pkey', columns: [t.schoolId, t.day] })],
 );
+
+/** Students who came from a lead, so their later payments count as lead revenue. */
+export const rmLeadStudents = pgTable('rm_lead_students', {
+  schoolId: schoolId(),
+  studentId: uuid('student_id').primaryKey(),
+  leadId: uuid('lead_id').notNull(),
+  convertedOn: date('converted_on').notNull(),
+  ...timestamps(),
+});
 
 export const rmTestAttemptsDaily = pgTable(
   'rm_test_attempts_daily',
@@ -125,6 +137,9 @@ export const growthReports = pgTable(
     upsellRevenueMinor: minor('upsell_revenue_minor').notNull(),
     slotsFilled: integer('slots_filled').notNull(),
     slotFillMinutes: integer('slot_fill_minutes').notNull(),
+    leadsCaptured: integer('leads_captured').notNull().default(0),
+    leadsConverted: integer('leads_converted').notNull().default(0),
+    leadRevenueMinor: minor('lead_revenue_minor').notNull().default(0),
     generatedAt: tstz('generated_at').notNull(),
     ...timestamps(),
   },

@@ -19,6 +19,9 @@ const ZERO = {
   upsellRevenueMinor: 0,
   slotsFilled: 0,
   slotFillMinutes: 0,
+  leadsCaptured: 0,
+  leadsConverted: 0,
+  leadRevenueMinor: 0,
 };
 
 const row = (day: string, counts: Partial<GrowthDayRow> = {}): GrowthDayRow => ({
@@ -116,6 +119,27 @@ describe('growthMetrics', () => {
       upsellRevenueMinor: 5_000,
       slotsFilled: 3,
       slotFillMinutes: 210,
+      leadsCaptured: 0,
+      leadsConverted: 0,
+      leadRevenueMinor: 0,
+    });
+  });
+
+  it('sums leads captured, leads converted and lead revenue of the month', () => {
+    const metrics = growthMetrics({
+      currency: 'EUR',
+      month: [
+        row('2026-09-01', { leadsCaptured: 3, leadsConverted: 1, leadRevenueMinor: 5_000 }),
+        row('2026-09-15', { leadsCaptured: 2 }),
+        row('2026-09-30', { leadsConverted: 2, leadRevenueMinor: 12_000 }),
+        row('2026-09-20', { currency: 'HUF', leadsCaptured: 1, leadRevenueMinor: 900_000 }),
+      ],
+      previous: [row('2026-08-10', { leadsCaptured: 50, leadRevenueMinor: 99_000 })],
+    });
+    expect(metrics).toMatchObject({
+      leadsCaptured: 6,
+      leadsConverted: 3,
+      leadRevenueMinor: 17_000,
     });
   });
 

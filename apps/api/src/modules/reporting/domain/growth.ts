@@ -17,6 +17,9 @@ export interface GrowthDayRow {
   upsellRevenueMinor: number;
   slotsFilled: number;
   slotFillMinutes: number;
+  leadsCaptured: number;
+  leadsConverted: number;
+  leadRevenueMinor: number;
 }
 
 export interface GrowthMetrics {
@@ -32,6 +35,9 @@ export interface GrowthMetrics {
   upsellRevenueMinor: number;
   slotsFilled: number;
   slotFillMinutes: number;
+  leadsCaptured: number;
+  leadsConverted: number;
+  leadRevenueMinor: number;
 }
 
 export function shiftMonth(month: string, delta: number): string {
@@ -76,5 +82,8 @@ export function growthMetrics(input: {
     upsellRevenueMinor: sum(money, 'upsellRevenueMinor'),
     slotsFilled: sum(month, 'slotsFilled'),
     slotFillMinutes: sum(month, 'slotFillMinutes'),
+    leadsCaptured: sum(month, 'leadsCaptured'),
+    leadsConverted: sum(month, 'leadsConverted'),
+    leadRevenueMinor: sum(money, 'leadRevenueMinor'),
   };
 }

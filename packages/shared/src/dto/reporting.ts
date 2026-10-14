@@ -32,6 +32,9 @@ export const growthReportSchema = z.object({
   upsellRevenueMinor: amountMinorSchema,
   slotsFilled: count,
   slotFillMinutes: count,
+  leadsCaptured: count,
+  leadsConverted: count,
+  leadRevenueMinor: amountMinorSchema,
   generatedAt: dateTimeSchema,
 });
 export type GrowthReport = z.infer<typeof growthReportSchema>;

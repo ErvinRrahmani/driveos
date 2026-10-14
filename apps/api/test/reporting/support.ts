@@ -27,6 +27,9 @@ const ZERO = {
   slotFillMinutes: 0,
   instructorMinutesAvailable: 0,
   instructorMinutesBooked: 0,
+  leadsCaptured: 0,
+  leadsConverted: 0,
+  leadRevenueMinor: 0,
 };
 
 export function seedDailyMetrics(
@@ -142,6 +145,9 @@ export async function seedGrowthReport(
       upsellRevenueMinor: 5_000,
       slotsFilled: 2,
       slotFillMinutes: 90,
+      leadsCaptured: 4,
+      leadsConverted: 2,
+      leadRevenueMinor: 12_000,
       generatedAt: new Date(`${month}-28T01:00:00Z`),
     }),
   );

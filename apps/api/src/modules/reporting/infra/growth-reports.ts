@@ -25,6 +25,9 @@ export function toGrowthReport(row: GrowthReportRow): GrowthReport {
     upsellRevenueMinor: row.upsellRevenueMinor,
     slotsFilled: row.slotsFilled,
     slotFillMinutes: row.slotFillMinutes,
+    leadsCaptured: row.leadsCaptured,
+    leadsConverted: row.leadsConverted,
+    leadRevenueMinor: row.leadRevenueMinor,
     generatedAt: row.generatedAt.toISOString(),
   };
 }

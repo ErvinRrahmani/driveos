@@ -40,6 +40,9 @@ interface ReportRow {
   upsell_revenue_minor: number;
   slots_filled: number;
   slot_fill_minutes: number;
+  leads_captured: number;
+  leads_converted: number;
+  lead_revenue_minor: number;
 }
 
 describe('monthly growth report', () => {
@@ -84,7 +87,7 @@ describe('monthly growth report', () => {
                 revenue_in_app_minor::int, revenue_recorded_minor::int, inapp_share_bp,
                 late_cancellations_kept, late_cancel_minutes_kept, no_show_rate_bp,
                 no_show_rate_prev3m_bp, upsells_sold, upsell_revenue_minor::int, slots_filled,
-                slot_fill_minutes
+                slot_fill_minutes, leads_captured, leads_converted, lead_revenue_minor::int
            from growth_reports where school_id = $1 and ($2::text is null or month = ($2 || '-01')::date)
           order by month`,
         [tenant.schoolId, month ?? null],
@@ -161,6 +164,9 @@ describe('monthly growth report', () => {
         slotsOffered: 3,
         slotsFilled: 1,
         slotFillMinutes: 90,
+        leadsCaptured: 3,
+        leadsConverted: 1,
+        leadRevenueMinor: 5_000,
       });
       await seedDailyMetrics(tenants, A, '2026-03-31', {
         revenueInAppMinor: 10_000,
@@ -171,6 +177,9 @@ describe('monthly growth report', () => {
         noShows: 1,
         slotsFilled: 2,
         slotFillMinutes: 120,
+        leadsCaptured: 2,
+        leadsConverted: 1,
+        leadRevenueMinor: 7_000,
       });
       await seedDailyMetrics(tenants, A, '2025-12-01', { lessonsDue: 10, noShows: 3 });
       await seedDailyMetrics(tenants, A, '2026-01-31', { lessonsDue: 5 });
@@ -181,6 +190,8 @@ describe('monthly growth report', () => {
         revenueRecordedMinor: 99_999,
         lessonsDue: 100,
         noShows: 100,
+        leadsCaptured: 50,
+        leadRevenueMinor: 99_999,
       });
 
       const result = await generate(A, '2026-03');
@@ -201,6 +212,9 @@ describe('monthly growth report', () => {
         upsell_revenue_minor: 5_000,
         slots_filled: 3,
         slot_fill_minutes: 210,
+        leads_captured: 5,
+        leads_converted: 2,
+        lead_revenue_minor: 12_000,
       });
       const [event] = await eventsOf(A, '2026-03');
       expect(event).toMatchObject({
@@ -335,6 +349,9 @@ describe('monthly growth report', () => {
         upsellRevenueMinor: 5_000,
         slotsFilled: 3,
         slotFillMinutes: 210,
+        leadsCaptured: 5,
+        leadsConverted: 2,
+        leadRevenueMinor: 12_000,
       });
       expect(Number.isNaN(Date.parse(res.body.generatedAt))).toBe(false);
     });

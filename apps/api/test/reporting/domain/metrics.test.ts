@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   dailyDeltas,
   lateMoveDelta,
+  leadContribution,
   lessonContribution,
   paymentDelta,
   slotOfferContribution,
@@ -173,6 +174,67 @@ describe('paymentDelta', () => {
     expect(
       paymentDelta('RefundIssued', { amountMinor: 5_000, method: 'cash' }, at, BERLIN).counts,
     ).toEqual({ refundsMinor: 5_000, revenueRecordedMinor: -5_000 });
+  });
+
+  it('adds the amount to lead revenue when the payer came from a lead', () => {
+    expect(
+      paymentDelta(
+        'PaymentSucceeded',
+        { ...purchase, method: 'in_app', priceItemKind: 'lesson', fromLead: true },
+        at,
+        BERLIN,
+      ).counts,
+    ).toEqual({
+      revenueInAppMinor: 30_000,
+      revenueRecordedMinor: 30_000,
+      leadRevenueMinor: 30_000,
+    });
+    expect(
+      paymentDelta(
+        'CashPaymentRecorded',
+        { ...purchase, method: 'cash', priceItemKind: 'fee', fromLead: true },
+        at,
+        BERLIN,
+      ).counts,
+    ).toEqual({ revenueRecordedMinor: 30_000, leadRevenueMinor: 30_000 });
+    expect(
+      paymentDelta(
+        'CashPaymentRecorded',
+        { ...purchase, method: 'cash', priceItemKind: 'fee', fromLead: false },
+        at,
+        BERLIN,
+      ).counts,
+    ).toEqual({ revenueRecordedMinor: 30_000 });
+  });
+
+  it('does not reduce lead revenue on a refund', () => {
+    expect(
+      paymentDelta(
+        'RefundIssued',
+        { amountMinor: 5_000, method: 'cash', fromLead: true },
+        at,
+        BERLIN,
+      ).counts,
+    ).toEqual({ refundsMinor: 5_000, revenueRecordedMinor: -5_000 });
+  });
+});
+
+describe('leadContribution', () => {
+  it('counts a captured lead on the local day of capture', () => {
+    expect(leadContribution('LeadCaptured', '2026-10-31T22:30:00.000Z', BERLIN)).toEqual({
+      day: '2026-10-31',
+      counts: { leadsCaptured: 1 },
+    });
+    expect(leadContribution('LeadCaptured', '2026-10-31T23:30:00.000Z', BERLIN).day).toBe(
+      '2026-11-01',
+    );
+  });
+
+  it('counts a converted lead on the local day of conversion', () => {
+    expect(leadContribution('LeadConverted', '2026-03-29T00:30:00.000Z', BERLIN)).toEqual({
+      day: '2026-03-29',
+      counts: { leadsConverted: 1 },
+    });
   });
 });
 

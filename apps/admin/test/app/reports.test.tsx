@@ -103,6 +103,9 @@ function growthReport(month: string, revenueRecordedMinor: number): GrowthReport
     upsellRevenueMinor: 71100,
     slotsFilled: 11,
     slotFillMinutes: 660,
+    leadsCaptured: 14,
+    leadsConverted: 5,
+    leadRevenueMinor: 210000,
     generatedAt: '2026-10-01T01:00:00.000Z',
   };
 }

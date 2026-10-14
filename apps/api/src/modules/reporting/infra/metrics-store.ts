@@ -13,6 +13,7 @@ import {
 import {
   rmInstructorAvailability,
   rmInstructorTimeOff,
+  rmLeadStudents,
   rmMetricSources,
   rmSchoolMetricsDaily,
   rmTestAttemptsDaily,
@@ -34,6 +35,9 @@ const COLUMNS: Record<MetricKey, PgColumn> = {
   slotsFilled: rmSchoolMetricsDaily.slotsFilled,
   slotFillMinutes: rmSchoolMetricsDaily.slotFillMinutes,
   instructorMinutesBooked: rmSchoolMetricsDaily.instructorMinutesBooked,
+  leadsCaptured: rmSchoolMetricsDaily.leadsCaptured,
+  leadsConverted: rmSchoolMetricsDaily.leadsConverted,
+  leadRevenueMinor: rmSchoolMetricsDaily.leadRevenueMinor,
 };
 
 const ZERO_COUNTS = Object.fromEntries(METRIC_KEYS.map((key) => [key, 0])) as Record<
@@ -119,6 +123,26 @@ export class MetricsStore {
       .insert(rmInstructorAvailability)
       .values({ schoolId, ...layer, windows: [...layer.windows] })
       .onConflictDoNothing();
+  }
+
+  async addLeadStudent(
+    schoolId: string,
+    studentId: string,
+    leadId: string,
+    day: string,
+  ): Promise<void> {
+    await this.tenant.tx
+      .insert(rmLeadStudents)
+      .values({ schoolId, studentId, leadId, convertedOn: day })
+      .onConflictDoNothing();
+  }
+
+  async isLeadStudent(studentId: string): Promise<boolean> {
+    const [row] = await this.tenant.tx
+      .select({ studentId: rmLeadStudents.studentId })
+      .from(rmLeadStudents)
+      .where(eq(rmLeadStudents.studentId, studentId));
+    return row !== undefined;
   }
 
   async addTimeOff(schoolId: string, timeOffId: string, period: TimeOffPeriod): Promise<void> {

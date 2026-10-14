@@ -121,7 +121,7 @@ idempotent by event id (`event_deliveries`); projections also skip stale `aggreg
 | billing | `PaymentSucceeded`, `PaymentFailed`, `CashPaymentRecorded`, `RefundIssued`, `LedgerEntryRecorded`, `EntitlementGranted`, `InvoiceIssued`, `CreditNoteIssued`, `PlatformChargeCreated`, `PlatformStatementIssued` | `billing.student-fee` ← `StudentEnrolled`; `billing.student-fee-reversal` ← `StudentArchived` |
 | documents | `DocumentUploaded`, `ContractCreated`, `ContractSigned`, `ContractCompleted` | `documents.student-anonymized` ← `StudentAnonymized` |
 | messaging | `MessageSent`, `DeviceTokenInvalidated` | `messaging.conversations` ← `StudentCreated`, `InstructorAssigned`; `messaging.invitation-notifications` ← `InvitationCreated`; `messaging.lesson-notifications` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`; `messaging.billing-notifications` ← `InvoiceIssued`, `PlatformStatementIssued`; `messaging.contract-notifications` ← `ContractCreated`; `messaging.chat-notifications` ← `MessageSent`; `messaging.slot-offer-notifications` ← `SlotOfferCreated`; `messaging.growth-report-notifications` ← `GrowthReportGenerated`; `messaging.guardian-consent-notifications` ← `GuardianLinked` |
-| reporting | `GrowthReportGenerated` | `reporting.school-metrics` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `SlotOfferCreated`, `SlotOfferAccepted`, `SlotOfferExpired`, `PaymentSucceeded`, `CashPaymentRecorded`, `RefundIssued`, `TestAttemptRecorded`, `AvailabilityChanged`, `TimeOffAdded` |
+| reporting | `GrowthReportGenerated` | `reporting.school-metrics` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `SlotOfferCreated`, `SlotOfferAccepted`, `SlotOfferExpired`, `PaymentSucceeded`, `CashPaymentRecorded`, `RefundIssued`, `TestAttemptRecorded`, `AvailabilityChanged`, `TimeOffAdded`, `LeadCaptured`, `LeadConverted` |
 
 Differences from the SPEC §3.6 table: messaging also emits `DeviceTokenInvalidated` (consumed by
 identity); training's `GuardianLinked` is consumed by messaging (consent request); scheduling does
@@ -130,8 +130,8 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 `PlatformChargeCreated`, `WaitingListJoined`, `DocumentUploaded`, `ContractSigned`,
 `ContractCompleted`, `SchoolCreated`,
 `SchoolSettingsChanged`, `BranchChanged`, `PaymentAccountConnected`, `ReviewSubmitted`,
-`ReviewModerated`, `LeadCaptured`, `LeadStatusChanged`, `LeadConverted` or the platform events yet
-(reporting and messaging consume the lead events from enrolment page tasks 6 and 7). The school module also consumes training's
+`ReviewModerated`, `LeadStatusChanged` or the platform events yet (messaging consumes the lead
+events from enrolment page task 7; reporting consumes `LeadCaptured` and `LeadConverted`). The school module also consumes training's
 `StudentAnonymized` (enrolment page design §4.3).
 
 ### identity (owned by step 3a)
@@ -829,18 +829,22 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   dispatched by the growth job). Aggregates reporting's `rm_school_metrics_daily` for the local days
   of the month (`month-01` … last day; days are already local dates in the school zone) into one
   `growth_reports` row (unique `(school_id, month)`, `month` stored as the 1st):
-  - `revenue_in_app_minor`, `revenue_recorded_minor`, `upsells_sold`, `upsell_revenue_minor`: sums of
-    the days whose `currency` is the school's current currency (`GetSchoolQuery`), which is the
-    report's `currency`; `inapp_share_bp = revenue_in_app / revenue_recorded`.
+  - `revenue_in_app_minor`, `revenue_recorded_minor`, `upsells_sold`, `upsell_revenue_minor`,
+    `lead_revenue_minor`: sums of the days whose `currency` is the school's current currency
+    (`GetSchoolQuery`), which is the report's `currency`; `inapp_share_bp = revenue_in_app /
+    revenue_recorded`.
   - `late_cancellations_kept` / `late_cancel_minutes_kept` = sums of `late_cancellations` /
     `late_cancel_minutes_kept`; `slots_filled` / `slot_fill_minutes` = sums; `no_show_rate_bp =
     no_shows / lessons_due` of the month; `no_show_rate_prev3m_bp` = the same ratio over the three
     previous calendar months pooled (Σ no_shows / Σ lessons_due, not the mean of three rates).
+  - `leads_captured` / `leads_converted` = sums of the month's days (enrolment page design §4.6).
+    The three lead columns are `not null default 0`, so reports generated before them read 0.
   - Rates are basis points rounded to the nearest integer, 0 when the divisor is 0.
   - Idempotent: an existing row for the month is returned unchanged and no event is appended
     (`insert … on conflict do nothing` + re-read). A new row appends `GrowthReportGenerated`
     (aggregate `growth_report`, id = report id, version 1) with `ownerUserIds` = the active
-    memberships with the `owner` role (`identity.MembershipDirectory.listByRole('owner')`).
+    memberships with the `owner` role (`identity.MembershipDirectory.listByRole('owner')`). The
+    event payload does not carry the three lead fields (the publisher strips them; v1 unchanged).
   - Malformed month → `RangeError`.
 - Queries: `GetGrowthReportQuery`, `GetNoShowReportQuery`, `GetRevenueReportQuery`,
   `GetPassRateReportQuery`, `GetUtilisationReportQuery`.
@@ -868,8 +872,9 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 - Projection `reporting.school-metrics` (worker) consumes `LessonBooked`, `LessonMoved`,
   `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `SlotOfferCreated`, `SlotOfferAccepted`,
   `SlotOfferExpired`, `PaymentSucceeded`, `CashPaymentRecorded`, `RefundIssued`, `TestAttemptRecorded`,
-  `AvailabilityChanged`, `TimeOffAdded` (all version 1; no payload change was needed). Days are
-  local dates in the school's time zone at the time the event is projected.
+  `AvailabilityChanged`, `TimeOffAdded`, `LeadCaptured`, `LeadConverted` (all version 1; no payload
+  change was needed). Days are local dates in the school's time zone at the time the event is
+  projected.
   - `rm_school_metrics_daily` (one row per school and local day; every write is a single
     `insert … on conflict do update` increment):
     - money, on the local day of `occurredAt` (cash basis, D3): `revenue_in_app_minor` += in-app
@@ -887,6 +892,14 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
       (`LessonMoved.lateCancellation`, `creditMinutesDelta` minutes, on the previous start's day).
     - slot offers, on the local day of the slot start: `slots_offered` (created, accepted or
       expired), `slots_filled` / `slot_fill_minutes` (accepted, `creditMinutes`).
+    - leads: `leads_captured` += 1 on the local day of `LeadCaptured.capturedAt`; `leads_converted`
+      += 1 on the local day of `LeadConverted.convertedAt`, which also inserts
+      `rm_lead_students(school_id, student_id PK, lead_id, converted_on)` (forced RLS, policy
+      `rm_lead_students_tenant`; no PII, kept when the student is anonymized).
+    - lead attribution: `lead_revenue_minor` += the amount of a `PaymentSucceeded` or
+      `CashPaymentRecorded` whose `studentId` has an `rm_lead_students` row (looked up in the same
+      transaction), on the payment's local day. `RefundIssued` does not reduce lead revenue. A
+      payment projected before its student's `LeadConverted` is not attributed.
     - `instructor_minutes_available` is not maintained (stays 0): available minutes depend on
       open-ended weekly patterns, so the utilisation report computes them at read time.
   - Lessons and slot offers keep their current contribution in `rm_metric_sources(source_type,

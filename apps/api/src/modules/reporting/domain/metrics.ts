@@ -16,6 +16,9 @@ export const METRIC_KEYS = [
   'slotsFilled',
   'slotFillMinutes',
   'instructorMinutesBooked',
+  'leadsCaptured',
+  'leadsConverted',
+  'leadRevenueMinor',
 ] as const;
 
 export type MetricKey = (typeof METRIC_KEYS)[number];
@@ -57,7 +60,11 @@ export interface MoneyFacts {
   method: string;
   priceItemKind?: string;
   creditMinutes?: number;
+  /** The payer is a student who came from a lead (`rm_lead_students`). */
+  fromLead?: boolean;
 }
+
+export type LeadEventType = 'LeadCaptured' | 'LeadConverted';
 
 const MINUTE_MS = 60_000;
 
@@ -141,7 +148,16 @@ export function paymentDelta(
   if (money.priceItemKind === 'package' && money.creditMinutes) {
     counts.packageMinutesSold = money.creditMinutes;
   }
+  if (money.fromLead === true) counts.leadRevenueMinor = amount;
   return { day, counts };
+}
+
+/** A captured or converted lead counts on the local day it happened (`capturedAt`/`convertedAt`). */
+export function leadContribution(type: LeadEventType, at: string, zone: string): Contribution {
+  const day = localDayOf(new Date(at), zone);
+  return type === 'LeadCaptured'
+    ? { day, counts: { leadsCaptured: 1 } }
+    : { day, counts: { leadsConverted: 1 } };
 }
 
 function nonZero(counts: MetricCounts): MetricCounts {

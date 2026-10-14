@@ -2,6 +2,8 @@ import {
   AvailabilityChanged,
   CashPaymentRecorded,
   type EventPayload,
+  LeadCaptured,
+  LeadConverted,
   LessonBooked,
   LessonCancelled,
   LessonCompleted,
@@ -24,6 +26,7 @@ import {
   type Contribution,
   dailyDeltas,
   lateMoveDelta,
+  leadContribution,
   type LessonEventType,
   lessonContribution,
   type MoneyEventType,
@@ -51,10 +54,13 @@ type MoneyPayload =
   | EventPayload<typeof CashPaymentRecorded>
   | EventPayload<typeof RefundIssued>;
 
+type LeadPayload = EventPayload<typeof LeadCaptured> | EventPayload<typeof LeadConverted>;
+
 type Payload =
   | LessonPayload
   | SlotOfferPayload
   | MoneyPayload
+  | LeadPayload
   | EventPayload<typeof TestAttemptRecorded>
   | EventPayload<typeof AvailabilityChanged>
   | EventPayload<typeof TimeOffAdded>;
@@ -97,6 +103,8 @@ const MONEY_EVENTS: ReadonlySet<string> = new Set([
     TestAttemptRecorded,
     AvailabilityChanged,
     TimeOffAdded,
+    LeadCaptured,
+    LeadConverted,
   ],
 })
 export class SchoolMetricsProjection extends Projection<Payload> {
@@ -144,8 +152,32 @@ export class SchoolMetricsProjection extends Projection<Payload> {
     const { timeZone, currency } = await this.schools.current();
     if (MONEY_EVENTS.has(event.type)) {
       const money = event.payload as MoneyPayload;
-      const delta = paymentDelta(event.type as MoneyEventType, money, event.occurredAt, timeZone);
+      // Refunds do not reduce lead revenue, so only payments look up the payer.
+      const fromLead =
+        event.type !== RefundIssued.type && (await this.store.isLeadStudent(money.studentId));
+      const delta = paymentDelta(
+        event.type as MoneyEventType,
+        { ...money, fromLead },
+        event.occurredAt,
+        timeZone,
+      );
       await this.store.add(schoolId, delta, money.currency);
+      return;
+    }
+    if (event.type === LeadCaptured.type) {
+      const lead = event.payload as EventPayload<typeof LeadCaptured>;
+      await this.store.add(
+        schoolId,
+        leadContribution('LeadCaptured', lead.capturedAt, timeZone),
+        currency,
+      );
+      return;
+    }
+    if (event.type === LeadConverted.type) {
+      const lead = event.payload as EventPayload<typeof LeadConverted>;
+      const contribution = leadContribution('LeadConverted', lead.convertedAt, timeZone);
+      await this.store.addLeadStudent(schoolId, lead.studentId, lead.leadId, contribution.day);
+      await this.store.add(schoolId, contribution, currency);
       return;
     }
     if (LESSON_EVENTS.has(event.type)) {
