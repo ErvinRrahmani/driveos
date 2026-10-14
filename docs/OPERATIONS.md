@@ -72,6 +72,8 @@ All seeded users sign in with a one-time code: `POST /v1/auth/code {"contact": "
 | Mia Minor | +4915550000010 | mia.minor@example.com | Fahrschule Spree | student, minor (16), membership `pending_consent` |
 | Gustav Minor | +4915550000011 | gustav.minor@example.com | Fahrschule Spree | parent of Mia (link without consent yet) |
 
+Enrolment page (Fahrschule Spree, Standard plan with the `enrolment_page` feature): the public page is at http://localhost:15173/s/fahrschule-spree and needs no login. Enquiries sent there appear under Leads for Otto and Olga, who also get a `lead_captured` email in Mailpit (they have no push device). Sam has a passed practical test and an approved review, so the mobile review screen tells him he already sent one; the other students have not passed and get "not yet". Escola de Condução Tejo is on Solo and has no public page.
+
 With `VITE_USE_MOCKS=true` (admin) or `EXPO_PUBLIC_USE_MOCKS=true` (mobile) the apps talk to the in-process mock API from `@driveos/shared/mocks`, which accepts the code `000000` (`MOCK_LOGIN_CODE`). The real API never accepts a fixed code. The `X-Dev-School` / `X-Dev-User` headers are honoured only under `NODE_ENV=test` ([`auth.module.ts`](../apps/api/src/kernel/auth/auth.module.ts)).
 
 ## 2. Database roles and RLS
@@ -393,11 +395,18 @@ Everything below is to confirm with a local accountant and a certified fiscalisa
 - Global (as `app_system`): the 11 users in section 1, Petra as platform admin, plans `solo` and `standard`, and the SAMPLE question pack `packs/sample-B-en.json`, published.
 - Two schools, both EUR, as `app_rw` with `app.school_id` set: **Fahrschule Spree** (DE, Europe/Berlin) and **Escola de Condução Tejo** (PT, Europe/Lisbon). Each gets settings, a branch, opening hours, a subscription, memberships, vehicles, three lesson types (standard, night drive, driving exam), instructor availability, syllabus items B01 to B08 and four price items (single lesson, 10-lesson package, premium theory, car for the exam).
 - Fahrschule Spree only: five students with enrolments, all assigned to Ingo, rows in `rm_student_list`, Gustav linked as Mia's guardian without consent (Mia's membership is `pending_consent`; her date of birth is computed from today so she is always 16), and sample chat conversations.
+- Fahrschule Spree only, for the enrolment page (Standard plan; plan `standard` has `features = ['enrolment_page']`, `solo` has none):
+  - a published public profile `fahrschule-spree` (headline, description, phone and WhatsApp `+4915550000002`, Instagram `https://instagram.com/fahrschule.spree`, external review link `https://maps.google.com/?cid=example`, prices and instructors shown);
+  - `show_on_public_page = true` on the single lesson and the 10-lesson package;
+  - a passed practical `test_attempts` row for Sam (2026-09-15, with its `rm_test_attempts_daily` row) and his approved five-star review shown as "Sam S.";
+  - two leads: "Lea Lead" (`new`, from the page, `+4915550000020`, `lea.lead@example.com`, class B, a message, consent `lead-consent.v1`) and Sofia Silva (`converted`, typed in by staff, consent `manual`, linked to Sofia's student record, with her `rm_lead_students` row);
+  - the two leads already projected into `rm_school_metrics_daily` (2026-09-01: one captured, one converted; 2026-09-20: one captured) and a `growth_reports` row for September 2026 with `leads_captured = 2`, `leads_converted = 1`, everything else 0. The reports page's Growth history tab therefore shows a non-empty leads funnel for September 2026 straight after seeding; the hourly `reporting.growth-report` job finds that month already present and leaves it alone.
+- Escola de Condução Tejo gets no public profile, review or lead (Solo plan).
 
 Properties:
 
 - **Idempotent:** every insert is `on conflict do nothing`, so re-running changes nothing (it also does not update rows that changed since).
-- It writes rows directly and emits **no outbox events**; read models are seeded directly. No lessons, payments or ledger entries are seeded; create them through the API.
+- It writes rows directly and emits **no outbox events**; read models (and the one growth report) are seeded directly. No lessons, payments or ledger entries are seeded; create them through the API. The seeded leads therefore never sent a `lead_captured` notification, and Sam's passed test never sent a `review_request`.
 - Reset: `pnpm --filter @driveos/api db:reset && pnpm --filter @driveos/api db:seed`.
 - Never run it against production.
 
@@ -429,6 +438,13 @@ Dev adapters ([`apps/api/src/adapters/`](../apps/api/src/adapters/)):
 - Request logs lack `school_id`/`user_id`; no error tracking; health check does not test dependencies; worker has no health endpoint.
 - Alerts are only logs and an API endpoint; nothing pages anyone.
 - The CI workflow ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) has never run on GitHub.
+- Enrolment page:
+  - `LeadCaptured` carries the lead's `fullName`, and the outbox has no retention, so the name stays in `outbox.payload` after the lead is deleted by the purge job or by anonymizing the converted student (the same holds for `StudentCreated.fullName`).
+  - The public page `/s/{slug}` is rendered in the browser only (no server-side rendering), so search engines and link previews see little of it.
+  - No school logo on the public page (no upload yet).
+  - Strings are in English only; Albanian translations of the page, the consent text and the notifications are pending.
+  - Two first enquiries with the same contact sent at the same moment can create two leads (the 30-day dedupe locks only existing rows).
+  - The `review_request` email carries the `driveos://student/review` deep link as plain text, which many email clients do not make clickable; the external review link next to it is a normal https link.
 
 ## 12. Load test results
 

@@ -942,8 +942,11 @@ All SPEC §8 routes are implemented; there are no 501 stubs left (`routes.test.t
 2. Add a cross-tenant fixture in `apps/api/test/<module>/route-fixtures.ts` (registered in
    `test/support/route-fixtures.ts`). `apps/api/test/support/route-allowlist.ts` only holds routes
    without tenant data by design (health, `/v1/auth/*`, the payment webhook, fake-pay, Swagger,
-   `GET /v1/me`); `routes.test.ts` rejects any other entry and any OpenAPI operation without a
-   fixture.
+   `GET /v1/me`) and the two public enrolment-page routes (`GET /v1/public/schools/:slug`,
+   `POST /v1/public/schools/:slug/leads`), which resolve the school from the slug through
+   `school_id_for_public_slug`; the lead route is the one entry that writes a row (one lead in that
+   school), as its note says. `routes.test.ts` rejects any other entry and any OpenAPI operation
+   without a fixture.
 3. `pnpm generate` regenerates the OpenAPI document, the client and the mock routes.
 
 ### Foreign ids in request bodies

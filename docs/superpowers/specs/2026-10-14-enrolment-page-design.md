@@ -1,6 +1,6 @@
 # Enrolment page, lead inbox and review requests — design
 
-Status: draft for review. Source: `.context/reports/DriveOS premium features.md` §1 ("An online enrolment page turns social reach into enrolments"). Builds on Phase 1 as committed on `main`.
+Status: built on branch `feature/enrolment-page`; the sections below describe what was built (SPEC §2 Premium, §11 D11–D13). Source: `.context/reports/DriveOS premium features.md` §1 ("An online enrolment page turns social reach into enrolments"). Builds on Phase 1 as committed on `main`.
 
 ## 1. Goal
 
@@ -163,7 +163,7 @@ The `Idempotency-Key` makes a double click safe.
 
 `ModerateReviewCommand` sets `approved` or `hidden`; appends `ReviewModerated` v1. Only approved reviews are public. The school is told on the moderation screen that hiding negative reviews is their choice but DriveOS asks every passing student, never only happy ones.
 
-Review request: messaging subscribes to `TestAttemptRecorded`; when `kind = practical` and `result = pass` it sends `review_request` to the student (push, email when no device; skipped when the student has no login) with the app deep link `driveos://student/review` and, when set, the school's `external_review_url`. Sent at most once per student (`dedupe_key = review_request:<studentId>` on `notifications`).
+Review request: messaging subscribes to `TestAttemptRecorded`; when `kind = practical` and `result = pass` it sends `review_request` to the student (push, email when no device; skipped when the student has no login) with the app deep link `<MOBILE_DEEP_LINK_SCHEME>student/review` (`driveos://` by default). When the school set an `external_review_url`, the email adds it as an extra line; the push and the app's deep link carry no external URL, so the app never opens a link it cannot verify. Sent at most once per student (`dedupe_key = review_request:<studentId>` on `notifications`).
 
 ### 5.5 Reporting
 
@@ -175,13 +175,13 @@ Review request: messaging subscribes to `TestAttemptRecorded`; when `kind = prac
 
 - `/s/$slug` (outside `_app`, no auth): the public page. Sections: header (name, headline, address, opening hours), buttons (WhatsApp, call), prices, instructors, reviews (average, count, list), enrolment form. The form has the minor toggle with guardian fields and the consent text (i18n key `publicPage.consent.v1`), a hidden `website` field, and shows a success state. Mobile-first layout, Tailwind, no shadcn dependency on the authenticated shell.
 - `/leads` (nav item, `leads.read`): table with status tabs (new, contacted, converted, lost), search, detail drawer with notes and status actions, "Convert" dialog pre-filled from the lead that opens the existing create-student form fields and an "invite now" switch.
-- `/settings/public-page` (`public_page.manage`): slug with availability check (`409 slug_taken` on save), published switch, profile fields, price-item flags (edits `show_on_public_page` through `PATCH /v1/price-items/{id}`), preview link, reviews moderation table.
+- Settings tab "Public page" (`/settings?tab=publicPage`, `public_page.manage`): slug with availability check (`409 slug_taken` on save), published switch, profile fields, price-item flags (edits `show_on_public_page` through `PATCH /v1/price-items/{id}`), preview link, reviews moderation table.
 - `/reports`: funnel block on the growth report.
 - Navigation items are hidden when the plan lacks `enrolment_page`; the settings page shows an upgrade notice instead of the form.
 
 ### 6.2 Mobile (`apps/mobile`)
 
-- Student screen `student/review`: 1–5 stars and text, available only when the API says the student may review (`GET /v1/me` → `canReview`, derived by the identity query from `HasPassedPracticalQuery`); otherwise the route redirects home. Deep link target of `review_request`.
+- Student screen `student/review`: 1–5 stars and text (≤ 600 characters). Reached from the `review_request` push and from Account → "Rate your school". There is no `canReview` flag on `/v1/me`: the screen submits and shows the API's answer (`403 review_not_available` → "not yet", `409 review_exists` → "already sent").
 
 ## 7. Permissions
 

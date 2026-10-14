@@ -5,6 +5,12 @@ import { conversations, messages } from '../../src/modules/messaging/infra/schem
 import { memberships, platformAdmins, users } from '../../src/modules/identity/infra/schema.js';
 import { plans, subscriptions } from '../../src/modules/platform/infra/schema.js';
 import {
+  growthReports,
+  rmLeadStudents,
+  rmSchoolMetricsDaily,
+  rmTestAttemptsDaily,
+} from '../../src/modules/reporting/infra/schema.js';
+import {
   availability,
   availabilityVersions,
   lessonTypes,
@@ -12,6 +18,8 @@ import {
 import {
   branches,
   openingHours,
+  schoolPublicProfiles,
+  schoolReviews,
   schoolSettings,
   schools,
   vehicles,
@@ -20,10 +28,12 @@ import { questionPacks, questions } from '../../src/modules/theory/infra/schema.
 import {
   enrolments,
   guardianLinks,
+  leads,
   studentInstructors,
   rmStudentList,
   students,
   syllabusItems,
+  testAttempts,
 } from '../../src/modules/training/infra/schema.js';
 import type { TenantContext, Transaction } from '../../src/kernel/tenant/tenant-context.js';
 import {
@@ -35,18 +45,26 @@ import {
   AVAILABILITY_FROM,
   BRANCHES,
   CHAT_MESSAGES,
+  LEAD_METRICS_DAYS,
+  LEADS,
   LESSON_TYPES,
   LICENCE_CLASS,
   MEMBERSHIPS,
   OPENING_HOURS,
+  PASSED_PRACTICAL,
   PRICE_LISTS,
+  PUBLIC_PROFILE,
+  REVIEW,
   SEED,
   SEED_AT,
   seedId,
+  SEPTEMBER_GROWTH_REPORT,
+  SOFIA_CONVERTED_ON,
   studentRows,
   SUBSCRIPTIONS,
   SYLLABUS_ITEMS,
   VEHICLES,
+  ZERO_METRICS,
 } from './seed-data.js';
 
 export const PACKS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../packs');
@@ -274,6 +292,49 @@ async function seedSchool(tx: Transaction, key: SchoolKey, today: Date): Promise
     key,
     roster.map((student) => student.id),
   );
+  if (key === 'berlin') await seedEnrolmentPage(tx, schoolId);
+}
+
+/** Public profile, Sam's review (and the passed test behind it), two leads and their read models. */
+async function seedEnrolmentPage(tx: Transaction, schoolId: string): Promise<void> {
+  await tx
+    .insert(schoolPublicProfiles)
+    .values({ schoolId, ...PUBLIC_PROFILE })
+    .onConflictDoNothing();
+  const { student, ...attempt } = PASSED_PRACTICAL;
+  await tx
+    .insert(testAttempts)
+    .values({ schoolId, studentId: SEED.students[student].id, ...attempt })
+    .onConflictDoNothing();
+  await tx
+    .insert(rmTestAttemptsDaily)
+    .values({ schoolId, day: attempt.takenOn, kind: attempt.kind, attempts: 1, passed: 1 })
+    .onConflictDoNothing();
+  await tx
+    .insert(schoolReviews)
+    .values({ schoolId, ...REVIEW })
+    .onConflictDoNothing();
+  await tx
+    .insert(leads)
+    .values(Object.values(LEADS).map((lead) => ({ schoolId, ...lead })))
+    .onConflictDoNothing();
+  await tx
+    .insert(rmLeadStudents)
+    .values({
+      schoolId,
+      studentId: LEADS.sofia.studentId,
+      leadId: LEADS.sofia.id,
+      convertedOn: SOFIA_CONVERTED_ON,
+    })
+    .onConflictDoNothing();
+  await tx
+    .insert(rmSchoolMetricsDaily)
+    .values(LEAD_METRICS_DAYS.map((day) => ({ schoolId, ...ZERO_METRICS, ...day })))
+    .onConflictDoNothing();
+  await tx
+    .insert(growthReports)
+    .values({ schoolId, ...SEPTEMBER_GROWTH_REPORT })
+    .onConflictDoNothing();
 }
 
 const MINUTE_MS = 60_000;

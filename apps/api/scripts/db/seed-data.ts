@@ -1,9 +1,21 @@
+import { LEAD_CONSENT_TEXT_VERSION } from '@driveos/shared';
 import type { priceItems } from '../../src/modules/billing/infra/schema.js';
 import type { users } from '../../src/modules/identity/infra/schema.js';
 import type { plans } from '../../src/modules/platform/infra/schema.js';
 import type { lessonTypes } from '../../src/modules/scheduling/infra/schema.js';
-import type { branches, schools, vehicles } from '../../src/modules/school/infra/schema.js';
-import type { students } from '../../src/modules/training/infra/schema.js';
+import type {
+  branches,
+  schoolPublicProfiles,
+  schoolReviews,
+  schools,
+  vehicles,
+} from '../../src/modules/school/infra/schema.js';
+import type {
+  growthReports,
+  rmSchoolMetricsDaily,
+} from '../../src/modules/reporting/infra/schema.js';
+import { MANUAL_LEAD_CONSENT_VERSION } from '../../src/modules/training/domain/leads.js';
+import type { leads, students } from '../../src/modules/training/infra/schema.js';
 
 const ENTITY = {
   school: 0x01,
@@ -26,6 +38,10 @@ const ENTITY = {
   availability: 0x12,
   conversation: 0x13,
   message: 0x14,
+  lead: 0x15,
+  review: 0x16,
+  testAttempt: 0x17,
+  growthReport: 0x18,
 } as const;
 
 export function seedId(entity: keyof typeof ENTITY, n: number): string {
@@ -393,7 +409,7 @@ export const SYLLABUS_ITEMS: { code: string; title: string }[] = [
 
 type PriceItemSeed = Omit<typeof priceItems.$inferInsert, 'id' | 'schoolId'>;
 
-const priceList = (
+const priceItemsOf = (
   taxRateBp: number,
   amounts: [number, number, number, number],
 ): PriceItemSeed[] => [
@@ -443,8 +459,19 @@ const priceList = (
   },
 ];
 
+/** `publicCount` leading items (single lesson, 10-lesson package) are shown on the public page. */
+const priceList = (
+  taxRateBp: number,
+  amounts: [number, number, number, number],
+  publicCount = 0,
+): PriceItemSeed[] =>
+  priceItemsOf(taxRateBp, amounts).map((item, index) => ({
+    ...item,
+    showOnPublicPage: index < publicCount,
+  }));
+
 export const PRICE_LISTS: Record<SchoolKey, PriceItemSeed[]> = {
-  berlin: priceList(1900, [6500, 60000, 2900, 15000]),
+  berlin: priceList(1900, [6500, 60000, 2900, 15000], 2),
   lisbon: priceList(2300, [4500, 42000, 2500, 11000]),
 };
 
@@ -472,3 +499,145 @@ export function studentRows(today: Date): (typeof students.$inferInsert & { id: 
     };
   });
 }
+
+/*
+ * Enrolment page (premium `enrolment_page`, Standard plan): Fahrschule Spree only. Escola Tejo is on
+ * Solo, which has no such feature, so it gets no profile, review or lead.
+ */
+type SeedRow<T extends { $inferInsert: object }> = Omit<T['$inferInsert'], 'schoolId'> & {
+  id: string;
+};
+
+export const PUBLIC_PROFILE: Omit<typeof schoolPublicProfiles.$inferInsert, 'schoolId'> = {
+  slug: 'fahrschule-spree',
+  published: true,
+  headline: 'Your driving licence in Berlin Mitte, step by step',
+  description:
+    'Fahrschule Spree teaches class B in Berlin Mitte: patient instructors, manual and automatic ' +
+    'cars, evening lessons and theory you can practise in the app.',
+  phone: '+4915550000002',
+  whatsappNumber: '+4915550000002',
+  instagramUrl: 'https://instagram.com/fahrschule.spree',
+  facebookUrl: null,
+  externalReviewUrl: 'https://maps.google.com/?cid=example',
+  showPrices: true,
+  showInstructors: true,
+};
+
+/** Sam passed the practical test; that is what lets him review the school. */
+export const PASSED_PRACTICAL = {
+  id: seedId('testAttempt', 1),
+  student: 'sam',
+  kind: 'practical',
+  takenOn: '2026-09-15',
+  result: 'passed',
+  notes: 'Passed first time.',
+} as const;
+
+export const REVIEW: SeedRow<typeof schoolReviews> = {
+  id: seedId('review', 1),
+  studentId: SEED.students.sam.id,
+  rating: 5,
+  text: 'Patient instructors and clear explanations. I passed the practical test first time.',
+  displayName: 'Sam S.',
+  status: 'approved',
+  submittedAt: new Date('2026-09-16T10:00:00.000Z'),
+  moderatedAt: new Date('2026-09-17T09:00:00.000Z'),
+  moderatedByUserId: SEED.users.berlinOwner.id,
+  version: 2,
+};
+
+const LEA_CAPTURED_AT = new Date('2026-09-20T17:45:00.000Z');
+const SOFIA_CAPTURED_AT = new Date('2026-09-01T07:30:00.000Z');
+
+export const LEADS = {
+  lea: {
+    id: seedId('lead', 1),
+    status: 'new',
+    source: 'page',
+    fullName: 'Lea Lead',
+    phone: '+4915550000020',
+    email: 'lea.lead@example.com',
+    licenceClass: LICENCE_CLASS,
+    message: 'Hi! I would like to start in October. Do you offer evening lessons?',
+    isMinor: false,
+    consentTextVersion: LEAD_CONSENT_TEXT_VERSION,
+    consentedAt: LEA_CAPTURED_AT,
+    createdAt: LEA_CAPTURED_AT,
+  },
+  sofia: {
+    id: seedId('lead', 2),
+    status: 'converted',
+    source: 'manual',
+    fullName: SEED.users.sofia.fullName,
+    phone: SEED.users.sofia.phone,
+    email: SEED.users.sofia.email,
+    licenceClass: LICENCE_CLASS,
+    message: null,
+    isMinor: false,
+    consentTextVersion: MANUAL_LEAD_CONSENT_VERSION,
+    consentedAt: SOFIA_CAPTURED_AT,
+    note: 'Phoned the office; enrolled the same morning.',
+    studentId: SEED.students.sofia.id,
+    convertedAt: SEED_AT,
+    version: 2, // captured, then converted
+    createdAt: SOFIA_CAPTURED_AT,
+  },
+} satisfies Record<string, SeedRow<typeof leads>>;
+
+/** Berlin day of Sofia's conversion (`SEED_AT`), as `rm_lead_students.converted_on`. */
+export const SOFIA_CONVERTED_ON = '2026-09-01';
+
+/** The leads above, already projected: Berlin days in September 2026 (the seed month). */
+export const LEAD_METRICS_DAYS: { day: string; leadsCaptured: number; leadsConverted: number }[] = [
+  { day: SOFIA_CONVERTED_ON, leadsCaptured: 1, leadsConverted: 1 },
+  { day: '2026-09-20', leadsCaptured: 1, leadsConverted: 0 },
+];
+
+type MetricsDay = Omit<typeof rmSchoolMetricsDaily.$inferInsert, 'schoolId' | 'day'>;
+
+export const ZERO_METRICS: Omit<MetricsDay, 'leadsCaptured' | 'leadsConverted'> = {
+  currency: CURRENCY,
+  revenueInAppMinor: 0,
+  revenueRecordedMinor: 0,
+  refundsMinor: 0,
+  lessonsCompleted: 0,
+  lateCancellations: 0,
+  lateCancelMinutesKept: 0,
+  noShows: 0,
+  upsellsSold: 0,
+  upsellRevenueMinor: 0,
+  packageMinutesSold: 0,
+  slotsOffered: 0,
+  slotsFilled: 0,
+  slotFillMinutes: 0,
+  instructorMinutesAvailable: 0,
+  instructorMinutesBooked: 0,
+  lessonsDue: 0,
+  leadRevenueMinor: 0,
+};
+
+/**
+ * September's growth report as the hourly job would write it from the rows above, so the growth
+ * tab's leads funnel is filled straight after seeding (its default month is the previous one).
+ */
+export const SEPTEMBER_GROWTH_REPORT: SeedRow<typeof growthReports> = {
+  id: seedId('growthReport', 1),
+  month: '2026-09-01',
+  currency: CURRENCY,
+  revenueInAppMinor: 0,
+  revenueRecordedMinor: 0,
+  inappShareBp: 0,
+  lateCancellationsKept: 0,
+  lateCancelMinutesKept: 0,
+  noShowRateBp: 0,
+  noShowRatePrev3mBp: 0,
+  upsellsSold: 0,
+  upsellRevenueMinor: 0,
+  slotsFilled: 0,
+  slotFillMinutes: 0,
+  leadsCaptured: LEAD_METRICS_DAYS.reduce((n, d) => n + d.leadsCaptured, 0),
+  leadsConverted: LEAD_METRICS_DAYS.reduce((n, d) => n + d.leadsConverted, 0),
+  leadRevenueMinor: 0,
+  generatedAt: new Date('2026-10-01T01:00:00.000Z'),
+};

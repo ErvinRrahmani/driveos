@@ -303,3 +303,22 @@ Review the whole repo against CLAUDE.md rules and SPEC §10:
 - Backup/restore and PITR notes; a load test for booking contention and the relay.
 - An end-to-end smoke test: platform creates school → owner invites student (minor) → guardian consents → buy package → book lesson → instructor completes offline and syncs → student sees progress and invoice → monthly growth report includes the payment.
 ```
+
+## Premium 1 — enrolment page
+
+Built on branch `feature/enrolment-page` after Phase 1, as one branch with one commit per task rather than one workspace per module. Design (binding, with the deviations written in): [`docs/superpowers/specs/2026-10-14-enrolment-page-design.md`](superpowers/specs/2026-10-14-enrolment-page-design.md). Plan with the 11 task briefs: [`docs/superpowers/plans/2026-10-14-enrolment-page.md`](superpowers/plans/2026-10-14-enrolment-page.md). SPEC: §2 "Premium (Pro) features", §11 D11–D13.
+
+| Task | Module | What |
+| --- | --- | --- |
+| 1 | platform, identity | `plans.features`, `SchoolHasFeatureQuery`, `GET /v1/me` `active.features` |
+| 2 | school | public profile, reviews, `school_id_for_public_slug`, `GET /v1/public/schools/{slug}` |
+| 3, 4 | billing, training | `price_items.show_on_public_page` + `ListPublicPriceItemsQuery`; `HasPassedPracticalQuery` |
+| 5 | training | leads: public capture, inbox, convert, purge job |
+| 6 | reporting | lead funnel columns, `rm_lead_students`, growth report fields |
+| 7 | messaging | `lead_captured` and `review_request` notifications |
+| 8 | admin | leads inbox, Public page settings tab, reviews moderation, growth funnel |
+| 9 | admin | public page `/s/{slug}` with the enquiry form |
+| 10 | mobile | student review screen (push deep link and Account entry) |
+| 11 | seed, docs | seed for Fahrschule Spree, SPEC/OPERATIONS/CONTRACTS, real-API Playwright scenario |
+
+Gate as for every workspace, plus `pnpm --filter @driveos/admin test:e2e` and the real-API Playwright project (`E2E_REAL_API=1 pnpm --filter @driveos/admin exec playwright test --project real-api` with the API, worker and admin running on a freshly seeded database).

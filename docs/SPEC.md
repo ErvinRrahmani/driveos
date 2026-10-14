@@ -33,6 +33,14 @@ Plus: auth and invitations, roles, school settings, platform billing to schools,
 
 **Phase 3 (do not build yet):** drive scoring with phone sensors, AI mock road test, multi-branch group plans.
 
+**Premium (Pro) features (built on Phase 1, sold through the plan):**
+1. **Enrolment page.** A public web page per school at `/s/{slug}` in `apps/admin` (no login): name, headline, address, opening hours, click-to-WhatsApp and call buttons, the prices the school flags, instructors, approved reviews and an enquiry form with consent (guardian details for minors). Edited by the owner under School settings → Public page.
+2. **Lead inbox.** Enquiries from the page and leads typed in by staff land in `/leads` (status `new|contacted|converted|lost`, notes); one click converts a lead into a student plus app invitation(s). Owner and office get a `lead_captured` notification. The growth report shows leads captured → converted → revenue from converted leads.
+3. **Review requests.** After a passed practical test the student is asked once (`review_request`) to rate the school in the app; the school approves or hides each review; approved ones appear on the page.
+4. **Plan gating.** Features are slugs in `plans.features` (first one: `enrolment_page`, on the Standard plan in the seed). `GET /v1/me` returns the active school's `features` so the admin app hides premium screens; the API enforces the gate (§11 D11).
+
+Design and deviations: [`docs/superpowers/specs/2026-10-14-enrolment-page-design.md`](superpowers/specs/2026-10-14-enrolment-page-design.md). New permissions: `public_page.manage` (owner), `leads.read` and `leads.manage` (owner, office), `reviews.moderate` (owner, office), `reviews.submit` (student).
+
 ## 3. Architecture (CQRS, no event sourcing)
 
 ### 3.1 Processes
@@ -91,7 +99,8 @@ Foreign keys across modules are allowed in the database. Reading another module'
 | --- | --- | --- | --- |
 | `change_feed` | scheduling | lesson, student, assignment, vehicle, progress, availability events | `GET /v1/sync` |
 | `rm_student_list` | training | student, assignment, lesson, ledger, progress events | admin student list, search |
-| `rm_school_metrics_daily` | reporting | lesson, ledger, payment, refund, slot-offer, availability events | reports, growth report |
+| `rm_school_metrics_daily` | reporting | lesson, ledger, payment, refund, slot-offer, availability, `LeadCaptured`, `LeadConverted` events | reports, growth report |
+| `rm_lead_students` | reporting | `LeadConverted` | attributing later payments of converted leads to `lead_revenue_minor` |
 
 `change_feed` has a single writer, the projection, which holds an advisory lock per school. Its `seq` therefore follows commit order, so a sync cursor can never skip a row (§7 "Instructor offline sync").
 
@@ -100,14 +109,14 @@ Foreign keys across modules are allowed in the database. Reading another module'
 | Module | Emits | Consumes |
 | --- | --- | --- |
 | identity | `InvitationCreated`, `MembershipCreated`, `MembershipRolesChanged`, `MembershipPermissionsChanged`, `MembershipDisabled` | `GuardianConsentGiven` (activates minor's membership) |
-| school | `SchoolCreated`, `SchoolSettingsChanged`, `BranchChanged`, `VehicleChanged`, `PaymentAccountConnected` | — |
-| training | `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `GuardianLinked`, `GuardianConsentGiven`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded` | lesson events, ledger events (→ `rm_student_list`) |
+| school | `SchoolCreated`, `SchoolSettingsChanged`, `BranchChanged`, `VehicleChanged`, `PaymentAccountConnected`, `ReviewSubmitted`, `ReviewModerated` | `StudentAnonymized` (deletes the student's review) |
+| training | `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `GuardianLinked`, `GuardianConsentGiven`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded`, `LeadCaptured`, `LeadStatusChanged`, `LeadConverted` | lesson events, ledger events (→ `rm_student_list`) |
 | scheduling | `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `AvailabilityChanged`, `TimeOffAdded`, `WaitingListJoined`, `SlotOfferCreated`, `SlotOfferAccepted`, `SlotOfferExpired` | `LessonCancelled` (→ slot offer), `InstructorUnassigned`, student/vehicle events (→ `change_feed`) |
 | billing | `PaymentSucceeded`, `PaymentFailed`, `CashPaymentRecorded`, `RefundIssued`, `LedgerEntryRecorded`, `EntitlementGranted`, `InvoiceIssued`, `CreditNoteIssued`, `PlatformChargeCreated`, `PlatformStatementIssued` | `StudentEnrolled`, `StudentArchived` (→ student fee / reversal) |
 | theory | `QuestionPackPublished`, `TheorySessionFinished` | — |
 | documents | `DocumentUploaded`, `ContractCreated`, `ContractSigned`, `ContractCompleted` | — |
-| messaging | `MessageSent` | `InvitationCreated`, lesson events, `SlotOfferCreated`, `InvoiceIssued`, `ContractCreated`, `GrowthReportGenerated`, `PlatformStatementIssued` |
-| reporting | `GrowthReportGenerated` | lesson, ledger, payment, refund, slot-offer, availability events |
+| messaging | `MessageSent` | `InvitationCreated`, lesson events, `SlotOfferCreated`, `InvoiceIssued`, `ContractCreated`, `GrowthReportGenerated`, `PlatformStatementIssued`, `LeadCaptured` (→ `lead_captured` to owner and office), `TestAttemptRecorded` (passed practical → `review_request`) |
+| reporting | `GrowthReportGenerated` | lesson, ledger, payment, refund, slot-offer, availability events, `LeadCaptured`, `LeadConverted` (→ lead funnel, `rm_lead_students`) |
 | platform | `SupportSessionStarted`, `SupportSessionEnded`, `SubscriptionChanged` | — |
 
 ## 4. Roles and permissions
@@ -133,15 +142,15 @@ Roles attach to a **membership** (user × school). A membership holds a **set** 
 | Module | Owns | Responsibilities |
 | --- | --- | --- |
 | `identity` | users, platform_admins, memberships, membership_branches, permission_grants, invitations, otp_codes, refresh_tokens, devices | One-time-code login, JWT access (15 min) + rotating refresh tokens, invitations, switch school, permission guard |
-| `school` | schools, school_settings, opening_hours, branches, vehicles, school_payment_accounts | Profile, legal/tax details, time zone, currency, settings, opening hours, branches, vehicles, staff list, payment account connection |
+| `school` | schools, school_settings, opening_hours, branches, vehicles, school_payment_accounts, school_public_profiles, school_reviews | Profile, legal/tax details, time zone, currency, settings, opening hours, branches, vehicles, staff list, payment account connection; public enrolment page (profile, public read) and reviews |
 | `scheduling` | lesson_types, availability, time_off, lessons, waiting_list, slot_offers, sync_operations, change_feed | Calendar, booking, moving, cancelling, completing; reminder jobs; fill-the-gap offers; offline sync |
-| `training` | students, student_instructors, guardian_links, enrolments, syllabus_items, progress_entries, private_notes, test_attempts, rm_student_list | Enrolment, assignment, guardians and consent, syllabus progress, notes, test results, export/anonymize |
+| `training` | students, student_instructors, guardian_links, enrolments, syllabus_items, progress_entries, private_notes, test_attempts, rm_student_list, leads | Enrolment, assignment, guardians and consent, syllabus progress, notes, test results, export/anonymize; leads (capture, inbox, conversion to a student, purge) |
 | `theory` | question_packs, questions, theory_sessions, theory_answers | Pack import/publish, practice/mock/mistakes sessions, stats |
 | `billing` | price_items, ledger_entries, entitlements, invoice_counters, invoices, invoice_lines, payments, refunds, idempotency_keys, platform_charges, platform_statements | Shop, credits ledger, entitlements, checkout, webhooks, invoices and credit notes, refunds, cash; platform billing to schools |
 | `documents` | documents, contract_templates, contracts, contract_signatures | Signed upload/download URLs, contracts with student and guardian signatures |
 | `messaging` | conversations, conversation_members, messages, notifications | Chat, notifications (push/SMS/email) with quiet hours, templates |
-| `reporting` | rm_school_metrics_daily, growth_reports | Growth report, revenue, no-shows, pass rate, utilisation |
-| `platform` | plans, subscriptions, support_sessions, audit_log | School onboarding, plans, support access, audit |
+| `reporting` | rm_school_metrics_daily, rm_lead_students, growth_reports | Growth report (with the leads funnel), revenue, no-shows, pass rate, utilisation |
+| `platform` | plans (with `features`), subscriptions, support_sessions, audit_log | School onboarding, plans and plan features, support access, audit |
 | `kernel` (not a business module) | outbox, event_deliveries, dead_letters | Buses, TenantContext, EventPublisher, relay, idempotency, test harness |
 
 ## 6. Data model (Phase 1)
@@ -174,6 +183,13 @@ opening_hours(id, school_id, branch_id null, weekday smallint, opens time, close
 branches(id, school_id, name, address, lat, lng)
 vehicles(id, school_id, branch_id, plate, make_model, transmission, licence_class, active)
 school_payment_accounts(id, school_id, provider, account_ref, status [pending|active|disabled])   -- unique(school_id, provider)
+school_public_profiles(school_id pk, slug, published bool default false, headline null, description null, phone null,
+                       whatsapp_number null, instagram_url null, facebook_url null, external_review_url null,
+                       show_prices bool default true, show_instructors bool default true, version int)
+  -- no id column; slug unique across all schools (school_public_profiles_slug_key), read cross-school only via school_id_for_public_slug
+school_reviews(id, school_id, student_id unique, rating smallint, text null, display_name, status [pending|approved|hidden] default pending,
+               submitted_at, moderated_at null, moderated_by_user_id null, version int)
+  CHECK (rating BETWEEN 1 AND 5)   -- student_id FK students; one review per student (school_reviews_student_key)
 ```
 
 **scheduling**
@@ -212,6 +228,12 @@ private_notes(id, school_id, lesson_id, student_id, author_membership_id, body, 
 test_attempts(id, school_id, student_id, kind [theory|practical], taken_on date, result [passed|failed], notes)
 rm_student_list(school_id, student_id pk, full_name, licence_class, status, primary_instructor_name, balance_minutes,
                 next_lesson_at, last_lesson_at, progress_pct, updated_at)
+leads(id, school_id, status [new|contacted|converted|lost] default new, source [page|manual], full_name, phone null, email null,
+      licence_class, message null, is_minor bool, guardian_name null, guardian_contact null, consent_text_version, consented_at,
+      note null, student_id null, converted_at null, lost_at null, lost_reason null, request_ip_hash null, version int)
+  CHECK (phone IS NOT NULL OR email IS NOT NULL)
+  CHECK (NOT is_minor OR (guardian_name IS NOT NULL AND guardian_contact IS NOT NULL))
+  -- indexes (school_id, status, created_at desc), (school_id, lower(email)), (school_id, phone); student_id FK students
 ```
 
 **theory**
@@ -226,7 +248,8 @@ theory_answers(id, school_id, session_id, question_id, given jsonb, correct bool
 **billing**
 ```
 price_items(id, school_id, name, kind [lesson|package|upsell|fee], credit_minutes null, entitlement_kind [premium_theory|exam_car] null,
-            amount_minor /* gross, tax included */, currency, tax_rate_bp int, active, sort_order)
+            amount_minor /* gross, tax included */, currency, tax_rate_bp int, active, sort_order,
+            show_on_public_page bool default false)
 ledger_entries(id, school_id, student_id, entry_type [purchase|debit|restore|adjustment|refund], minutes int /* signed */,
                lesson_id null, payment_id null, refund_id null, price_item_id null, note null, created_by_membership_id null)
   CHECK ((entry_type IN ('purchase','restore') AND minutes > 0) OR (entry_type IN ('debit','refund') AND minutes < 0)
@@ -275,15 +298,19 @@ notifications(id, school_id, user_id, channel [push|sms|email], template, payloa
 rm_school_metrics_daily(school_id, day date, currency, revenue_in_app_minor, revenue_recorded_minor, refunds_minor,
                         lessons_completed, late_cancellations, late_cancel_minutes_kept, no_shows,
                         upsells_sold, upsell_revenue_minor, package_minutes_sold, slots_offered, slots_filled, slot_fill_minutes,
-                        instructor_minutes_available, instructor_minutes_booked)   -- pk(school_id, day)
+                        instructor_minutes_available, instructor_minutes_booked, lessons_due,
+                        leads_captured, leads_converted, lead_revenue_minor)   -- pk(school_id, day); lead columns default 0
+rm_lead_students(school_id, student_id pk, lead_id, converted_on date)   -- students who came from a lead; no FK to students
 growth_reports(id, school_id, month date, currency, revenue_in_app_minor, revenue_recorded_minor, inapp_share_bp,
                late_cancellations_kept, late_cancel_minutes_kept, no_show_rate_bp, no_show_rate_prev3m_bp,
-               upsells_sold, upsell_revenue_minor, slots_filled, slot_fill_minutes, generated_at)   -- unique(school_id, month)
+               upsells_sold, upsell_revenue_minor, slots_filled, slot_fill_minutes,
+               leads_captured, leads_converted, lead_revenue_minor, generated_at)   -- unique(school_id, month)
 ```
 
 **platform**
 ```
-plans(id, code, name, base_amount_minor, student_fee_minor, currency, max_instructor_seats null, active)   -- [global]
+plans(id, code, name, base_amount_minor, student_fee_minor, currency, max_instructor_seats null,
+      features text[] default '{}' /* feature slugs, e.g. enrolment_page */, active)   -- [global]
 subscriptions(id, school_id, plan_id, started_at, ended_at null)
 support_sessions(id, platform_admin_user_id, school_id, reason, started_at, expires_at, ended_at null)   -- [global]; owner reads own school's rows via GET /v1/audit-log
 audit_log(id, school_id null, actor_user_id, support_session_id null, action, target_type, target_id, reason null, at)
@@ -321,6 +348,7 @@ dead_letters(id, subscriber, event_id, error, attempts, failed_at)
 | `billing_count_webhook_failures(since timestamptz)` | count of `payment_webhook_failures` across schools, only in a school-less scope (worker alert probe) |
 | `auth_devices_for_school_members(user_ids uuid[])` | `(device_id, user_id, push_token, platform, locale)` of the given users that are members of `app.school_id` (notification dispatcher) |
 | `auth_prune_device(device_id uuid, user_id uuid, seen_before timestamptz)` | nothing; deletes a member's device not seen after `seen_before`, only in a school scope without `app.user_id` |
+| `school_id_for_public_slug(slug text)` | `school_id` of the public profile with that slug when it is published and the school is `active`, else null (public page and public enquiry form) |
 
 Each function has a test proving it returns only the listed columns. Worker-scope access to tables outside the tenant predicate (`devices`, `payment_webhook_failures`) goes through these functions, never through extra RLS policies or `app_system`.
 
@@ -493,9 +521,11 @@ Each function has a test proving it returns only the listed columns. Worker-scop
 | --- | --- |
 | identity | `POST /v1/auth/code`, `POST /v1/auth/verify`, `POST /v1/auth/refresh`, `POST /v1/auth/logout`, `GET /v1/me`, `POST /v1/me/switch-school`, `POST /v1/invitations`, `GET /v1/invitations`, `POST /v1/invitations/{token}/accept`, `PATCH /v1/memberships/{id}` (roles, branches, grants, disable), `POST /v1/devices` |
 | school | `GET/PATCH /v1/school`, `GET/PATCH /v1/school/settings`, `GET/PUT /v1/school/opening-hours`, `GET/POST/PATCH /v1/branches`, `GET/POST/PATCH /v1/vehicles`, `GET /v1/staff`, `POST /v1/school/payment-account` (connect, fake in dev) |
+| school (enrolment page) | `GET/PUT /v1/school/public-profile`, `GET /v1/public/schools/{slug}` (public, no token), `POST /v1/reviews` (student, self), `GET /v1/reviews?status=`, `PATCH /v1/reviews/{id}` (approve/hide) |
 | scheduling | `GET/POST/PATCH /v1/lesson-types`, `GET /v1/calendar?from&to&instructorId&vehicleId&studentId`, `GET /v1/calendar/free-slots?lessonTypeId&from&to&instructorId`, `GET/PUT /v1/instructors/{id}/availability`, `POST /v1/instructors/{id}/time-off`, `POST /v1/lessons`, `PATCH /v1/lessons/{id}` (move), `POST /v1/lessons/{id}/cancel`, `POST /v1/lessons/{id}/complete`, `POST /v1/lessons/{id}/no-show`, `GET /v1/sync`, `POST /v1/sync` |
 | scheduling (offers) | `GET/POST /v1/waiting-list`, `DELETE /v1/waiting-list/{id}`, `GET /v1/slot-offers` (mine), `POST /v1/slot-offers`, `POST /v1/slot-offers/{id}/accept` |
 | training | `GET/POST /v1/students`, `GET/PATCH /v1/students/{id}`, `GET/PUT /v1/students/{id}/instructors`, `POST /v1/students/{id}/enrolments`, `GET /v1/students/{id}/progress`, `POST /v1/students/{id}/test-attempts`, `POST /v1/students/{id}/guardians`, `POST /v1/guardians/{linkId}/consent`, `GET /v1/syllabus`, `POST /v1/students/{id}/export`, `POST /v1/students/{id}/archive`, `DELETE /v1/students/{id}` (anonymize) |
+| training (leads) | `POST /v1/public/schools/{slug}/leads` (public, no token), `GET /v1/leads?status=&q=&cursor=&limit=`, `POST /v1/leads` (manual lead), `GET/PATCH /v1/leads/{id}` (status contacted/lost, note, lost reason), `POST /v1/leads/{id}/convert` |
 | theory | `GET /v1/question-packs/current`, `POST /v1/theory/sessions`, `POST /v1/theory/sessions/{id}/answers`, `POST /v1/theory/sessions/{id}/finish`, `GET /v1/theory/mistakes`, `GET /v1/theory/stats` |
 | billing | `GET/POST/PATCH /v1/price-items`, `GET /v1/shop`, `GET /v1/students/{id}/balance`, `GET /v1/students/{id}/ledger`, `POST /v1/checkout`, `GET /v1/invoices`, `GET /v1/invoices/{id}.pdf`, `POST /v1/refunds`, `POST /v1/payments/cash`, `POST /v1/ledger/adjustments`, `POST /v1/webhooks/payments/{provider}`, `GET /v1/platform-statements` (school's own) |
 | documents | `POST /v1/documents/upload-url`, `POST /v1/documents/{id}/complete`, `GET /v1/documents`, `GET /v1/documents/{id}/download-url`, `GET/POST /v1/contract-templates`, `POST /v1/contracts`, `GET /v1/contracts/{id}`, `POST /v1/contracts/{id}/sign` |
@@ -503,7 +533,9 @@ Each function has a test proving it returns only the listed columns. Worker-scop
 | reporting | `GET /v1/reports/growth?month=`, `GET /v1/reports/no-shows`, `/revenue`, `/pass-rate`, `/utilisation` (all `?from&to`) |
 | platform | `POST /v1/platform/schools`, `GET/POST/PATCH /v1/platform/plans`, `GET /v1/platform/statements`, `POST /v1/platform/statements/{id}/mark-paid` (`{method: bank_transfer|cash, paidAt, reference?}`), `POST /v1/platform/question-packs/import`, `POST /v1/platform/question-packs/{id}/publish`, `POST /v1/platform/support-sessions`, `POST /v1/platform/support-sessions/{id}/end`, `GET /v1/audit-log` (school owner: own school) |
 
-Idempotency-Key is required on: `POST /v1/checkout`, `/v1/refunds`, `/v1/payments/cash`, `/v1/ledger/adjustments`, `/v1/lessons` and `/v1/slot-offers/{id}/accept`.
+Idempotency-Key is required on: `POST /v1/checkout`, `/v1/refunds`, `/v1/payments/cash`, `/v1/ledger/adjustments`, `/v1/lessons`, `/v1/slot-offers/{id}/accept` and `/v1/leads/{id}/convert`.
+
+`GET /v1/me` also returns `active.features`, the feature slugs of the active school's plan (§2 Premium).
 
 ## 9. Adapters (`apps/api/src/adapters`)
 
@@ -558,6 +590,9 @@ For `"rules": "error_points"`, use `"maxErrorPoints"` instead of `"passMark"`, a
 - **D8 Exam car.** "Car for the exam" is an `exam_car` entitlement consumed by booking a lesson type of `kind = exam`. That booking holds the vehicle and instructor through the normal exclusion constraints.
 - **D9 Premium theory.** It unlocks unlimited mock exams and mistakes mode. A school can make it free for all its students with `theory_premium_free`.
 - **D10 Support access.** It is read-only, time-boxed, audited and runs under normal RLS. It never uses `BYPASSRLS`.
+- **D11 Plan feature gating.** A premium feature is a slug in `plans.features`; a school has it when its current subscription's plan lists it (`platform.SchoolHasFeatureQuery`, no per-school overrides). The API enforces `enrolment_page`: the public page and the public enquiry form answer `404 school_not_found` exactly like an unpublished page, and saving the public profile with `published: true` or adding a manual lead (`POST /v1/leads`) answers `403 feature_not_in_plan`. Existing leads and reviews stay readable, editable and convertible after a downgrade, so a school never loses data. The admin app hides the Leads navigation item from `GET /v1/me` `active.features` and shows an upgrade notice in the Public page settings.
+- **D12 Public lead route security.** The public routes carry no token and never take a school id from the client: the API first resolves the slug with `school_id_for_public_slug` in a school-less scope (published profile, active school), checks the plan feature, and only then runs the command inside that school's tenant transaction (`app.user_id` empty) under RLS. Abuse controls: a hidden `website` honeypot (a filled one gets `201 { id }` with a throw-away id and nothing is written, so a bot cannot tell), the rate limits `public-page` (120 per IP per hour) and `leads` (10 per IP per hour), and a 30-day dedupe (same phone or email and not `lost` → the message is appended to the existing lead's note). There is no per-contact rate limit. The IP is stored only as a SHA-256 hash and nulled after 30 days. Consent: the page shows the consent text whose version the API sends (`consentTextVersion`, now `lead-consent.v1`); the version and time are stored with the lead, and a minor's enquiry needs a guardian name and contact (CHECK). Leads typed in by staff store the version `manual`. Closed (`lost`/`converted`) leads are deleted 12 months after closing (`training.lead-purge`); anonymizing a student deletes the lead linked to them, and the student export lists it.
+- **D13 Reviews.** Only a student with a passed practical test (`HasPassedPracticalQuery`) can submit, once (`409 review_exists`); others get `403 review_not_available`. DriveOS asks every student who passes, once (`review_request`, dedupe key per student), never only the happy ones. A review starts `pending`; the school approves or hides it, and the moderation screen says hiding is the school's choice. Only approved reviews are public (newest 20 plus count and average), shown as first name + last initial fixed at submit. Anonymizing a student deletes their review (`school.review-anonymizer` on `StudentAnonymized`). The app's review deep link carries no external URL; the school's external review link appears only in the `review_request` email and on the public page.
 
 ## 12. Open decisions (keep pluggable until decided)
 

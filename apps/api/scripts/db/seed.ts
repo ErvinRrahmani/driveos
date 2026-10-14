@@ -4,7 +4,18 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseService } from '../../src/kernel/db/database.service.js';
 import { TenantContext } from '../../src/kernel/tenant/tenant-context.js';
 import { databaseName, loadDbToolEnv } from './lib.js';
-import { BRANCHES, LESSON_TYPES, PRICE_LISTS, SEED, VEHICLES } from './seed-data.js';
+import {
+  BRANCHES,
+  LEADS,
+  LESSON_TYPES,
+  PASSED_PRACTICAL,
+  PRICE_LISTS,
+  PUBLIC_PROFILE,
+  REVIEW,
+  SEED,
+  SEPTEMBER_GROWTH_REPORT,
+  VEHICLES,
+} from './seed-data.js';
 import { fixtureId, type SeedLogin, seedDatabase } from './seeder.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
@@ -44,12 +55,35 @@ function fixturesTable(): string {
       rows.push([school.name, 'lesson type', fixtureId('lessonType', key, i), type.name]),
     );
     PRICE_LISTS[key].forEach((item, i) =>
-      rows.push([school.name, 'price item', fixtureId('priceItem', key, i), item.name]),
+      rows.push([
+        school.name,
+        'price item',
+        fixtureId('priceItem', key, i),
+        item.showOnPublicPage ? `${item.name} (on the public page)` : item.name,
+      ]),
     );
   }
   for (const [key, student] of Object.entries(SEED.students)) {
     rows.push([SEED.schools.berlin.name, 'student', student.id, key]);
   }
+  const berlin = SEED.schools.berlin.name;
+  rows.push([
+    berlin,
+    'public page',
+    SEED.schools.berlin.id,
+    `/s/${PUBLIC_PROFILE.slug} (published, WhatsApp ${PUBLIC_PROFILE.whatsappNumber ?? '-'})`,
+  ]);
+  rows.push([berlin, 'review', REVIEW.id, `${REVIEW.displayName} (${REVIEW.status})`]);
+  rows.push([
+    berlin,
+    'test attempt',
+    PASSED_PRACTICAL.id,
+    `${PASSED_PRACTICAL.student}: ${PASSED_PRACTICAL.kind} ${PASSED_PRACTICAL.result}`,
+  ]);
+  for (const lead of Object.values(LEADS)) {
+    rows.push([berlin, 'lead', lead.id, `${lead.fullName} (${lead.status}, ${lead.source})`]);
+  }
+  rows.push([berlin, 'growth report', SEPTEMBER_GROWTH_REPORT.id, 'September 2026 (leads funnel)']);
   rows.push(['(global)', 'question pack', SEED.questionPack.id, SEED.questionPack.file]);
   for (const plan of Object.values(SEED.plans)) rows.push(['(global)', 'plan', plan.id, plan.code]);
   return table(['School', 'Entity', 'Id', 'Name'], rows);

@@ -32,6 +32,14 @@ const EXPECTED_COUNTS: Record<string, number> = {
   questions: 12,
   conversations: 10,
   messages: 4,
+  school_public_profiles: 1,
+  school_reviews: 1,
+  test_attempts: 1,
+  rm_test_attempts_daily: 1,
+  leads: 2,
+  rm_lead_students: 1,
+  rm_school_metrics_daily: 2,
+  growth_reports: 1,
 };
 
 const TODAY = new Date('2026-10-08T10:00:00Z');
@@ -315,6 +323,157 @@ describe('db:seed', () => {
         expect(row.tax_rate_bp).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('flags the single lesson and the 10-lesson package of Berlin for the public page', async () => {
+    const result = await system.query(
+      `select school_id, name from price_items where show_on_public_page order by school_id, sort_order`,
+    );
+    expect(result.rows).toEqual([
+      { school_id: berlin, name: 'Single lesson' },
+      { school_id: berlin, name: '10-lesson package' },
+    ]);
+  });
+
+  it('publishes the Fahrschule Spree page at fahrschule-spree and nothing for Lisbon', async () => {
+    const profiles = await system.query(
+      `select school_id, slug, published, headline is not null as has_headline,
+              description is not null as has_description, phone, whatsapp_number, instagram_url,
+              facebook_url, external_review_url, show_prices, show_instructors
+         from school_public_profiles`,
+    );
+    expect(profiles.rows).toEqual([
+      {
+        school_id: berlin,
+        slug: 'fahrschule-spree',
+        published: true,
+        has_headline: true,
+        has_description: true,
+        phone: '+4915550000002',
+        whatsapp_number: '+4915550000002',
+        instagram_url: 'https://instagram.com/fahrschule.spree',
+        facebook_url: null,
+        external_review_url: 'https://maps.google.com/?cid=example',
+        show_prices: true,
+        show_instructors: true,
+      },
+    ]);
+    const app = await connect(db.appUrl);
+    try {
+      const resolved = await app.query<{ id: string | null }>(
+        `select school_id_for_public_slug('fahrschule-spree') as id`,
+      );
+      expect(resolved.rows).toEqual([{ id: berlin }]);
+    } finally {
+      await app.end();
+    }
+  });
+
+  it('shows one approved review by Sam, who passed the practical test', async () => {
+    const reviews = await system.query(
+      `select r.school_id, r.student_id, r.rating, r.text is not null as has_text, r.display_name,
+              r.status, r.moderated_by_user_id, r.moderated_at >= r.submitted_at as moderated_after
+         from school_reviews r`,
+    );
+    expect(reviews.rows).toEqual([
+      {
+        school_id: berlin,
+        student_id: SEED.students.sam.id,
+        rating: 5,
+        has_text: true,
+        display_name: 'Sam S.',
+        status: 'approved',
+        moderated_by_user_id: SEED.users.berlinOwner.id,
+        moderated_after: true,
+      },
+    ]);
+    const attempts = await system.query(
+      `select a.school_id, a.student_id, a.kind, a.result, d.attempts, d.passed
+         from test_attempts a
+         join rm_test_attempts_daily d
+           on d.school_id = a.school_id and d.day = a.taken_on and d.kind = a.kind::text`,
+    );
+    expect(attempts.rows).toEqual([
+      {
+        school_id: berlin,
+        student_id: SEED.students.sam.id,
+        kind: 'practical',
+        result: 'passed',
+        attempts: 1,
+        passed: 1,
+      },
+    ]);
+  });
+
+  it('has a new page lead and a converted manual lead linked to Sofia', async () => {
+    const leads = await system.query(
+      `select school_id, status, source, full_name, phone, email, licence_class,
+              message is not null as has_message, is_minor, consent_text_version, student_id,
+              converted_at is not null as converted
+         from leads order by full_name`,
+    );
+    expect(leads.rows).toEqual([
+      {
+        school_id: berlin,
+        status: 'new',
+        source: 'page',
+        full_name: 'Lea Lead',
+        phone: '+4915550000020',
+        email: 'lea.lead@example.com',
+        licence_class: 'B',
+        has_message: true,
+        is_minor: false,
+        consent_text_version: 'lead-consent.v1',
+        student_id: null,
+        converted: false,
+      },
+      {
+        school_id: berlin,
+        status: 'converted',
+        source: 'manual',
+        full_name: 'Sofia Silva',
+        phone: '+4915550000008',
+        email: 'sofia.silva@example.com',
+        licence_class: 'B',
+        has_message: false,
+        is_minor: false,
+        consent_text_version: 'manual',
+        student_id: SEED.students.sofia.id,
+        converted: true,
+      },
+    ]);
+    const attributed = await system.query(
+      `select r.school_id, r.student_id, l.full_name
+         from rm_lead_students r join leads l on l.id = r.lead_id`,
+    );
+    expect(attributed.rows).toEqual([
+      { school_id: berlin, student_id: SEED.students.sofia.id, full_name: 'Sofia Silva' },
+    ]);
+  });
+
+  it('counts the two leads in September 2026 so the growth funnel is not empty', async () => {
+    const daily = await system.query(
+      `select school_id, sum(leads_captured)::int as captured, sum(leads_converted)::int as converted,
+              sum(lead_revenue_minor)::int as revenue
+         from rm_school_metrics_daily where day between '2026-09-01' and '2026-09-30'
+        group by school_id`,
+    );
+    expect(daily.rows).toEqual([{ school_id: berlin, captured: 2, converted: 1, revenue: 0 }]);
+    const report = await system.query(
+      `select school_id, month::text, currency, leads_captured, leads_converted,
+              lead_revenue_minor::int as lead_revenue
+         from growth_reports`,
+    );
+    expect(report.rows).toEqual([
+      {
+        school_id: berlin,
+        month: '2026-09-01',
+        currency: 'EUR',
+        leads_captured: 2,
+        leads_converted: 1,
+        lead_revenue: 0,
+      },
+    ]);
   });
 
   it('publishes the SAMPLE question pack with its questions', async () => {
