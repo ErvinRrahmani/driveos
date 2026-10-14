@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { dateSchema, dateTimeSchema, licenceClassSchema, localeSchema } from '../dto/common.js';
 import {
+  leadSourceSchema,
+  leadStatusSchema,
   studentStatusSchema,
   testAttemptKindSchema,
   testAttemptResultSchema,
@@ -136,5 +138,38 @@ export const TestAttemptRecorded = defineEvent({
     kind: testAttemptKindSchema,
     takenOn: dateSchema,
     result: testAttemptResultSchema,
+  }),
+});
+
+export const LeadCaptured = defineEvent({
+  type: 'LeadCaptured',
+  version: 1,
+  schema: z.object({
+    leadId: z.uuid(),
+    source: leadSourceSchema,
+    licenceClass: licenceClassSchema,
+    isMinor: z.boolean(),
+    fullName: z.string().min(1),
+    capturedAt: dateTimeSchema,
+  }),
+});
+
+export const LeadStatusChanged = defineEvent({
+  type: 'LeadStatusChanged',
+  version: 1,
+  schema: z.object({
+    leadId: z.uuid(),
+    status: leadStatusSchema.extract(['contacted', 'lost']),
+    changedAt: dateTimeSchema,
+  }),
+});
+
+export const LeadConverted = defineEvent({
+  type: 'LeadConverted',
+  version: 1,
+  schema: z.object({
+    leadId: z.uuid(),
+    studentId: z.uuid(),
+    convertedAt: dateTimeSchema,
   }),
 });

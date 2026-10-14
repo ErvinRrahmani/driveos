@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { IdentityWorkerModule } from '../identity/identity-worker.module.js';
+import { PurgeLeadsHandler } from './commands/purge-leads.handler.js';
 import { GuardianLinks } from './infra/guardian-links.js';
+import { LeadPurgeJob } from './infra/lead-purge.job.js';
+import { LeadRecords } from './infra/lead-records.js';
 import { MinorStatus } from './infra/minor-status.js';
 import { People } from './infra/people.js';
 import { ProgressRecords } from './infra/progress-records.js';
@@ -40,6 +43,9 @@ import { MembershipStudentLinkSubscriber } from './subscribers/membership-studen
     ListStudentIdsForInstructorHandler,
     GetStudentRecipientsHandler,
     ListStudentNamesHandler,
+    LeadRecords,
+    PurgeLeadsHandler,
+    LeadPurgeJob,
   ],
 })
 export class TrainingWorkerModule {}

@@ -54,6 +54,7 @@ describe('worker app', () => {
         'reporting.growth-report',
         'scheduling.slot-offer-expiry',
         'scheduling.slot-offer-gap-scan',
+        'training.lead-purge',
       ]);
 
       const id = randomUUID();

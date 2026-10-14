@@ -65,6 +65,7 @@
     "slug_taken": "Another school already uses this address. Choose a different one.",
     "feature_not_in_plan": "This feature is not part of the school's plan.",
     "school_not_found": "This school page does not exist or is not published.",
+    "lead_already_converted": "This lead has already been converted into a student.",
     "review_exists": "You have already reviewed this school.",
     "review_not_available": "Reviews open after you pass the practical driving test."
   },

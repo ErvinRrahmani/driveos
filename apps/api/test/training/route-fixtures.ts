@@ -1,7 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { newId } from '../../src/kernel/db/columns.js';
-import { guardianLinks, syllabusItems } from '../../src/modules/training/infra/schema.js';
-import { createStudent, createUser } from '../identity/support.js';
+import { guardianLinks, leads, syllabusItems } from '../../src/modules/training/infra/schema.js';
+import { createStudent, createUser, uniquePhone } from '../identity/support.js';
 import {
   expectListResponse,
   type FixtureContext,
@@ -25,7 +26,54 @@ const studentParams = async (ctx: FixtureContext) => {
   return { params: { id } };
 };
 
+async function leadOfA(ctx: FixtureContext, phone = uniquePhone()): Promise<string> {
+  const id = newId();
+  await ctx.tenants.asSchool(ctx.A, (tx) =>
+    tx.insert(leads).values({
+      id,
+      schoolId: ctx.A.schoolId,
+      source: 'page',
+      fullName: 'Cross Tenant Lead',
+      phone,
+      licenceClass: 'B',
+      isMinor: false,
+      consentTextVersion: 'lead-consent.v1',
+      consentedAt: new Date(),
+    }),
+  );
+  return id;
+}
+
+const leadParams = async (ctx: FixtureContext) => ({ params: { id: await leadOfA(ctx) } });
+
 export const trainingFixtures: RouteFixtures = {
+  'GET /v1/leads': {
+    setup: async (ctx) => ({ aIds: [await leadOfA(ctx)] }),
+    expect: expectListResponse('items'),
+  },
+  'POST /v1/leads': {
+    // B's plan has no enrolment_page (403); with it, B gets its own lead, never A's lead with the
+    // same phone (the 30-day dedupe stays inside the school).
+    setup: async (ctx) => {
+      const phone = uniquePhone();
+      return {
+        body: { fullName: 'Cross Tenant', phone, licenceClass: 'B', isMinor: false },
+        aIds: [await leadOfA(ctx, phone)],
+      };
+    },
+    expect: (res) => expect([StatusCodes.CREATED, StatusCodes.FORBIDDEN]).toContain(res.status),
+  },
+  'GET /v1/leads/:id': { setup: leadParams },
+  'PATCH /v1/leads/:id': {
+    setup: async (ctx) => ({ ...(await leadParams(ctx)), body: { status: 'contacted' } }),
+  },
+  'POST /v1/leads/:id/convert': {
+    setup: async (ctx) => ({
+      ...(await leadParams(ctx)),
+      body: { dateOfBirth: '2000-01-01', examLanguage: 'en' },
+      headers: { 'Idempotency-Key': `cross-tenant-${randomUUID()}` },
+    }),
+  },
   'GET /v1/students': {
     setup: async (ctx) => ({ aIds: [await studentOfA(ctx)] }),
     expect: expectListResponse('items'),

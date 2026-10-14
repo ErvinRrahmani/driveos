@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { IdentityModule } from '../identity/identity.module.js';
 import { PlatformModule } from '../platform/platform.module.js';
 import { AnonymizeStudentHandler } from './commands/anonymize-student.handler.js';
+import { CaptureLeadHandler } from './commands/capture-lead.handler.js';
+import { ConvertLeadHandler } from './commands/convert-lead.handler.js';
 import { ArchiveStudentHandler } from './commands/archive-student.handler.js';
 import { CreateStudentHandler } from './commands/create-student.handler.js';
 import { EnrolStudentHandler } from './commands/enrol-student.handler.js';
@@ -11,14 +13,18 @@ import { LinkGuardianHandler } from './commands/link-guardian.handler.js';
 import { RecordProgressHandler } from './commands/record-progress.handler.js';
 import { RecordTestAttemptHandler } from './commands/record-test-attempt.handler.js';
 import { ReplaceStudentInstructorsHandler } from './commands/replace-student-instructors.handler.js';
+import { UpdateLeadHandler } from './commands/update-lead.handler.js';
 import { UpdateStudentHandler } from './commands/update-student.handler.js';
 import { UpsertPrivateNoteHandler } from './commands/upsert-private-note.handler.js';
 import { GuardianLinksController, GuardiansController } from './http/guardians.controller.js';
+import { LeadsController } from './http/leads.controller.js';
 import { PrivateNotesController } from './http/private-notes.controller.js';
+import { PublicLeadsController } from './http/public-leads.controller.js';
 import { StudentsController } from './http/students.controller.js';
 import { SyllabusController } from './http/syllabus.controller.js';
 import { Assignments } from './infra/assignments.js';
 import { GuardianLinks } from './infra/guardian-links.js';
+import { LeadRecords } from './infra/lead-records.js';
 import { MinorStatus } from './infra/minor-status.js';
 import { People } from './infra/people.js';
 import { ProgressRecords } from './infra/progress-records.js';
@@ -36,10 +42,12 @@ import { GetStudentInstructorsHandler } from './queries/get-student-instructors.
 import { GetStudentMinorStatusHandler } from './queries/get-student-minor-status.handler.js';
 import { GetStudentProgressHandler } from './queries/get-student-progress.handler.js';
 import { GetStudentRecipientsHandler } from './queries/get-student-recipients.handler.js';
+import { GetLeadHandler } from './queries/get-lead.handler.js';
 import { GetStudentHandler } from './queries/get-student.handler.js';
 import { GetSyllabusHandler } from './queries/get-syllabus.handler.js';
 import { GetTestAttemptStatsHandler } from './queries/get-test-attempt-stats.handler.js';
 import { HasPassedPracticalHandler } from './queries/has-passed-practical.handler.js';
+import { ListLeadsHandler } from './queries/list-leads.handler.js';
 import { ListLinkedStudentIdsHandler } from './queries/list-linked-student-ids.handler.js';
 import { ListProgressEntriesHandler } from './queries/list-progress-entries.handler.js';
 import { ListStudentNamesHandler } from './queries/list-student-names.handler.js';
@@ -56,6 +64,8 @@ import { ListStudentsHandler } from './queries/list-students.handler.js';
     GuardianLinksController,
     SyllabusController,
     PrivateNotesController,
+    LeadsController,
+    PublicLeadsController,
   ],
   providers: [
     StudentRecords,
@@ -100,6 +110,12 @@ import { ListStudentsHandler } from './queries/list-students.handler.js';
     ListPrivateNotesHandler,
     ExportStudentDataHandler,
     AnonymizeStudentHandler,
+    LeadRecords,
+    CaptureLeadHandler,
+    UpdateLeadHandler,
+    ConvertLeadHandler,
+    ListLeadsHandler,
+    GetLeadHandler,
   ],
 })
 export class TrainingModule {}

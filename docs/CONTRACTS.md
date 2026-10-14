@@ -49,7 +49,9 @@ They join the caller's tenant transaction (SPEC §3.4). Inject them by token or 
   count). Over the limit: `429 rate_limited` with `Retry-After` and
   `details.retryAfterSeconds`. Policies: `auth` (ip+route on `/v1/auth/*`), `auth-contact`
   (contact on `POST /v1/auth/verify`), `invitations` (`POST /v1/invitations/{token}/accept`),
-  `webhooks` (`POST /v1/webhooks/payments/{provider}`), `fake-pay`, `health`. Identity's silent
+  `webhooks` (`POST /v1/webhooks/payments/{provider}`), `fake-pay`, `health`, `public-page`
+  (`GET /v1/public/schools/{slug}`), `leads` (ip+route on `POST /v1/public/schools/{slug}/leads`,
+  10 per hour). Identity's silent
   per-contact/per-IP/per-prefix OTP limits on `POST /v1/auth/code` stay in
   `identity/infra/login-rate-limiter.ts` (always `202`). Client IPs follow Express
   `trust proxy` = `HTTP_TRUST_PROXY` (default `loopback`; set it to the load balancer's
@@ -114,7 +116,7 @@ idempotent by event id (`event_deliveries`); projections also skip stale `aggreg
 | school | `SchoolCreated`, `SchoolSettingsChanged`, `BranchChanged`, `VehicleChanged`, `PaymentAccountConnected`, `ReviewSubmitted`, `ReviewModerated` | `school.review-anonymizer` ← `StudentAnonymized` |
 | platform | `SupportSessionStarted`, `SupportSessionEnded`, `SubscriptionChanged` | — |
 | scheduling | `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `AvailabilityChanged`, `TimeOffAdded`, `WaitingListJoined`, `SlotOfferCreated`, `SlotOfferAccepted`, `SlotOfferExpired` | `scheduling.change-feed` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `VehicleChanged`, `AvailabilityChanged`, `TimeOffAdded`; `scheduling.lesson-reminders` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`; `scheduling.slot-offers-from-cancellations` ← `LessonCancelled` |
-| training | `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `GuardianLinked`, `GuardianConsentGiven`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded` | `training.membership-student-link` ← `MembershipCreated`, `MembershipRolesChanged`; `training.student-list` ← `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded`, `LedgerEntryRecorded`, `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow` |
+| training | `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `GuardianLinked`, `GuardianConsentGiven`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded`, `LeadCaptured`, `LeadStatusChanged`, `LeadConverted` | `training.membership-student-link` ← `MembershipCreated`, `MembershipRolesChanged`; `training.student-list` ← `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded`, `LedgerEntryRecorded`, `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow` |
 | theory | `QuestionPackPublished`, `TheorySessionFinished` | — |
 | billing | `PaymentSucceeded`, `PaymentFailed`, `CashPaymentRecorded`, `RefundIssued`, `LedgerEntryRecorded`, `EntitlementGranted`, `InvoiceIssued`, `CreditNoteIssued`, `PlatformChargeCreated`, `PlatformStatementIssued` | `billing.student-fee` ← `StudentEnrolled`; `billing.student-fee-reversal` ← `StudentArchived` |
 | documents | `DocumentUploaded`, `ContractCreated`, `ContractSigned`, `ContractCompleted` | `documents.student-anonymized` ← `StudentAnonymized` |
@@ -128,7 +130,8 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 `PlatformChargeCreated`, `WaitingListJoined`, `DocumentUploaded`, `ContractSigned`,
 `ContractCompleted`, `SchoolCreated`,
 `SchoolSettingsChanged`, `BranchChanged`, `PaymentAccountConnected`, `ReviewSubmitted`,
-`ReviewModerated` or the platform events yet. The school module also consumes training's
+`ReviewModerated`, `LeadCaptured`, `LeadStatusChanged`, `LeadConverted` or the platform events yet
+(reporting and messaging consume the lead events from enrolment page tasks 6 and 7). The school module also consumes training's
 `StudentAnonymized` (enrolment page design §4.3).
 
 ### identity (owned by step 3a)
@@ -477,12 +480,14 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 
 ### training
 
-- Nest: `TrainingModule`.
+- Nest: `TrainingModule`, `TrainingWorkerModule`.
 - Commands: `CreateStudentCommand`, `UpdateStudentCommand`, `ArchiveStudentCommand`,
   `AnonymizeStudentCommand`, `EnrolStudentCommand`, `ReplaceStudentInstructorsCommand`,
   `LinkGuardianCommand`, `GiveGuardianConsentCommand`, `RecordProgressCommand`,
-  `UpsertPrivateNoteCommand`, `RecordTestAttemptCommand`, `ExportStudentDataCommand`.
-- Queries: `ListStudentsQuery`, `GetStudentQuery`, `GetStudentInstructorsQuery`,
+  `UpsertPrivateNoteCommand`, `RecordTestAttemptCommand`, `ExportStudentDataCommand`,
+  `CaptureLeadCommand`, `UpdateLeadCommand`, `ConvertLeadCommand` (leads, below; the worker-only
+  lead purge command is internal).
+- Queries: `ListLeadsQuery`, `GetLeadQuery` (leads, below), `ListStudentsQuery`, `GetStudentQuery`, `GetStudentInstructorsQuery`,
   `GetStudentProgressQuery`, `GetSyllabusQuery`, `GetStudentBookingProfileQuery`,
   `GetStudentByUserQuery` (the caller's own student record, by `students.user_id`),
   `ListLinkedStudentIdsQuery` (students linked to a guardian user with consent given and not
@@ -512,7 +517,8 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 - Emits: `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`,
   `GuardianLinked`, `GuardianConsentGiven`, `InstructorAssigned`, `InstructorUnassigned`,
   `ProgressRecorded`, `TestAttemptRecorded`. All use aggregate `student` (id = student id) with
-  `students.version` bumped once per event.
+  `students.version` bumped once per event. Also `LeadCaptured`, `LeadStatusChanged`,
+  `LeadConverted` (aggregate `lead`, below).
 - Consumes (worker, `TrainingWorkerModule`): `MembershipCreated` / `MembershipRolesChanged` with a
   `studentId` (subscriber `training.membership-student-link`): an added `student` role sets
   `students.user_id`, an added `parent` role creates the guardian link (`GuardianLinked`). The
@@ -533,6 +539,40 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   because training owns `guardian_links`.
 - Private notes never leave training through student or parent responses; staff read them only via
   `GET /v1/students/{id}/private-notes` (audited `private_notes.read`).
+- Leads (enrolment page design §4.4, §5.2, §5.3; table `leads`, RLS `leads_tenant`, migrations
+  0031/0032): `CaptureLeadCommand({ source: 'page' | 'manual', body, requestIpHash })` →
+  `{ id, version }` (the event actor is the tenant scope's user, null on the public form; `email`
+  lower-cased; a repeat enquiry with the same phone or lower-cased email within 30 days whose lead
+  is not `lost` returns that lead's id, appends the message to `note` (`\n---\n`) and bumps
+  `version` without an event (`domain/leads.ts` `findDuplicate`); `manual` needs platform
+  `SchoolHasFeatureQuery('enrolment_page')` → else `403 feature_not_in_plan` and stores
+  `consent_text_version = 'manual'` when none is given), `UpdateLeadCommand(actor, leadId,
+  { status?: contacted | lost, note?, lostReason? })` → `{ id, version }` (`LeadStatusChanged` only
+  when the status changes; a status change on a converted lead → `409 lead_already_converted`;
+  `contacted` clears `lost_at`/`lost_reason`), `ConvertLeadCommand(actor, leadId, body)` →
+  `{ id, version, studentId, invitationId, parentInvitationId }` (locks the lead; 404 / `409
+  lead_already_converted`; `CreateStudentCommand` with the lead's name and licence class, then
+  identity `CreateInvitationCommand(actor.userId, ['student'], lead contact, studentId, [])` when
+  `invite` (default true) and, for a minor lead with `inviteParent`, `LinkGuardianCommand` with
+  the guardian contact (email if it contains `@`, else phone), which issues a pending parent
+  invitation; all in the request transaction); the internal purge command (`now` → `{ deleted,
+  ipHashesCleared }`) deletes `lost`/`converted` leads whose `coalesce(converted_at, lost_at,
+  created_at)` is over 12 months old and nulls `request_ip_hash` after 30 days (no events; worker
+  only). Queries: `ListLeadsQuery(params)` (`{ status?, q?, cursor?, limit }`, newest first, cursor
+  = lead id, `q` matches name, phone or email), `GetLeadQuery(id)` (404 when not in this school).
+  Routes: `GET /v1/leads`, `GET /v1/leads/{id}` (`leads.read`), `POST /v1/leads`,
+  `PATCH /v1/leads/{id}`, `POST /v1/leads/{id}/convert` (`leads.manage`; convert needs
+  `Idempotency-Key`), all in `LeadsController`. Public: `POST /v1/public/schools/{slug}/leads`
+  (`PublicLeadsController`, `@Public()`, rate limit `leads` 10 per IP per hour): non-empty
+  honeypot `website` → `201 { id: <random> }` with no write; else school `ResolvePublicSchoolQuery`
+  in a school-less scope (404 `school_not_found`), then `CaptureLeadCommand` in
+  `runInTenant({ schoolId, userId: null })` with `requestIpHash` = sha256 hex of `req.ip`; answers
+  `201 { id }` only. Emits `LeadCaptured` v1 `{ leadId, source, licenceClass, isMinor, fullName,
+  capturedAt }`, `LeadStatusChanged` v1 `{ leadId, status, changedAt }`, `LeadConverted` v1
+  `{ leadId, studentId, convertedAt }` (aggregate `lead`, aggregate version = `leads.version`, so
+  note-only changes and repeat enquiries leave gaps). Worker job `training.lead-purge`
+  (`infra/lead-purge.job.ts` `LeadPurgeJob`, `15 3 * * *`, runs the purge command per school via
+  `PerSchoolJobs`). Staff reads of a lead are not audited (design §8).
 
 ### theory
 
@@ -911,6 +951,7 @@ that the target tables and the outbox are unchanged:
 | `PUT /v1/school/opening-hours` | `items[].branchId` | 404 `not_found` |
 | `POST /v1/vehicles`, `PATCH /v1/vehicles/:id` | `branchId` | 404 `not_found` |
 | `POST /v1/students` | `primaryInstructorMembershipId` | 400 `validation_error` |
+| `POST /v1/leads/:id/convert` | `primaryInstructorMembershipId` | 400 `validation_error` |
 | `PUT /v1/students/:id/instructors` | `instructors[].instructorMembershipId` | 400 `validation_error` |
 | `POST /v1/students/:id/guardians` | `guardianUserId` (user without a membership here) | 404 `not_found` |
 | `PUT /v1/students/:id/private-notes/:lessonId` | `:lessonId` | 404 `not_found` |

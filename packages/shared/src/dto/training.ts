@@ -14,11 +14,14 @@ import {
   NO_FIELDS_MESSAGE,
   pageQuerySchema,
   pageResponseSchema,
+  phoneSchema,
 } from './common.js';
 import {
   documentKindSchema,
   invoiceKindSchema,
   invoiceStatusSchema,
+  leadSourceSchema,
+  leadStatusSchema,
   ledgerEntryTypeSchema,
   lessonStatusSchema,
   studentStatusSchema,
@@ -391,3 +394,118 @@ export const archiveStudentRequestSchema = z.strictObject({
   reason: z.string().trim().min(1).max(500).optional(),
 });
 export type ArchiveStudentRequest = z.infer<typeof archiveStudentRequestSchema>;
+
+export const LEAD_FULL_NAME_MAX = 120;
+export const LEAD_MESSAGE_MAX = 1000;
+export const LEAD_NOTE_MAX = 2000;
+export const LEAD_LOST_REASON_MAX = 200;
+
+const leadFields = {
+  fullName: z.string().trim().min(1).max(LEAD_FULL_NAME_MAX),
+  phone: phoneSchema.optional(),
+  email: z.email().max(254).optional(),
+  licenceClass: licenceClassSchema,
+  message: z.string().trim().min(1).max(LEAD_MESSAGE_MAX).optional(),
+  isMinor: z.boolean(),
+  guardianName: z.string().trim().min(1).max(LEAD_FULL_NAME_MAX).optional(),
+  /** A phone (E.164) or an email: conversion invites the guardian at this contact. */
+  guardianContact: z.union([phoneSchema, z.email().max(254)]).optional(),
+  consentTextVersion: z.string().trim().min(1).max(50),
+};
+
+interface LeadContact {
+  phone?: string | undefined;
+  email?: string | undefined;
+  isMinor: boolean;
+  guardianName?: string | undefined;
+  guardianContact?: string | undefined;
+}
+
+/** A lead needs a phone or an email; a minor's lead needs the guardian's name and contact. */
+function refineLeadContact(body: LeadContact, ctx: z.RefinementCtx): void {
+  if (body.phone === undefined && body.email === undefined) {
+    ctx.addIssue({ code: 'custom', path: ['phone'], message: 'Give a phone or an email' });
+  }
+  if (body.isMinor && body.guardianName === undefined) {
+    ctx.addIssue({ code: 'custom', path: ['guardianName'], message: 'Required for a minor' });
+  }
+  if (body.isMinor && body.guardianContact === undefined) {
+    ctx.addIssue({ code: 'custom', path: ['guardianContact'], message: 'Required for a minor' });
+  }
+}
+
+export const captureLeadRequestSchema = z
+  .strictObject({ ...leadFields, website: z.string().max(200).optional() })
+  .superRefine(refineLeadContact);
+export type CaptureLeadRequest = z.infer<typeof captureLeadRequestSchema>;
+
+export const createLeadRequestSchema = z
+  .strictObject({ ...leadFields, consentTextVersion: leadFields.consentTextVersion.optional() })
+  .superRefine(refineLeadContact);
+export type CreateLeadRequest = z.infer<typeof createLeadRequestSchema>;
+
+/** The public form answer: only the id, never the lead's data or version. */
+export const captureLeadResponseSchema = z.object({ id: z.uuid() });
+export type CaptureLeadResponse = z.infer<typeof captureLeadResponseSchema>;
+
+export const leadSchema = z.object({
+  id: z.uuid(),
+  status: leadStatusSchema,
+  source: leadSourceSchema,
+  fullName: z.string(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  licenceClass: licenceClassSchema,
+  message: z.string().nullable(),
+  isMinor: z.boolean(),
+  guardianName: z.string().nullable(),
+  guardianContact: z.string().nullable(),
+  consentTextVersion: z.string(),
+  consentedAt: dateTimeSchema,
+  note: z.string().nullable(),
+  studentId: z.uuid().nullable(),
+  convertedAt: dateTimeSchema.nullable(),
+  lostAt: dateTimeSchema.nullable(),
+  lostReason: z.string().nullable(),
+  version: z.number().int().positive(),
+  createdAt: dateTimeSchema,
+  updatedAt: dateTimeSchema,
+});
+export type Lead = z.infer<typeof leadSchema>;
+
+export const listLeadsQuerySchema = pageQuerySchema.extend({
+  status: leadStatusSchema.optional(),
+  q: z.string().trim().min(1).max(100).optional(),
+});
+export type ListLeadsQuery = z.infer<typeof listLeadsQuerySchema>;
+
+export const leadListResponseSchema = pageResponseSchema(leadSchema);
+export type LeadListResponse = z.infer<typeof leadListResponseSchema>;
+
+export const updateLeadRequestSchema = z
+  .strictObject({
+    status: leadStatusSchema.extract(['contacted', 'lost']).optional(),
+    note: z.string().trim().max(LEAD_NOTE_MAX).optional(),
+    lostReason: z.string().trim().min(1).max(LEAD_LOST_REASON_MAX).optional(),
+  })
+  .refine(hasSomeField, { message: NO_FIELDS_MESSAGE })
+  .refine((body) => body.lostReason === undefined || body.status === 'lost', {
+    message: 'Only with status lost',
+    path: ['lostReason'],
+  });
+export type UpdateLeadRequest = z.infer<typeof updateLeadRequestSchema>;
+
+export const convertLeadRequestSchema = createStudentRequestSchema
+  .omit({ fullName: true, licenceClass: true })
+  .extend({
+    invite: z.boolean().default(true),
+    inviteParent: z.boolean().default(false),
+  });
+export type ConvertLeadRequest = z.infer<typeof convertLeadRequestSchema>;
+
+export const convertLeadResponseSchema = commandResultSchema.extend({
+  studentId: z.uuid(),
+  invitationId: z.uuid().nullable(),
+  parentInvitationId: z.uuid().nullable(),
+});
+export type ConvertLeadResponse = z.infer<typeof convertLeadResponseSchema>;

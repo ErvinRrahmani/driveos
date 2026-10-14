@@ -39,6 +39,7 @@ describe('scheduled jobs', () => {
       { name: 'reporting.growth-report', pattern: '0 * * * *', every: undefined },
       { name: 'scheduling.slot-offer-expiry', pattern: undefined, every: 60_000 },
       { name: 'scheduling.slot-offer-gap-scan', pattern: '0 2 * * *', every: undefined },
+      { name: 'training.lead-purge', pattern: '15 3 * * *', every: undefined },
     ]);
   });
 
@@ -68,6 +69,7 @@ describe('scheduled jobs', () => {
         { key: 'reporting.growth-report', pattern: '0 * * * *', every: undefined },
         { key: 'scheduling.slot-offer-expiry', pattern: undefined, every: 60_000 },
         { key: 'scheduling.slot-offer-gap-scan', pattern: '0 2 * * *', every: undefined },
+        { key: 'training.lead-purge', pattern: '15 3 * * *', every: undefined },
       ]);
     } finally {
       await scheduled.stop();

@@ -32,6 +32,10 @@ export const ROUTE_ALLOWLIST: RouteAllowlist = {
     reason: 'public',
     note: 'public enrolment page: school resolved via SECURITY DEFINER school_id_for_public_slug; only published data',
   },
+  'POST /v1/public/schools/:slug/leads': {
+    reason: 'public',
+    note: 'public lead capture: school resolved via SECURITY DEFINER school_id_for_public_slug; writes one lead row in that school; honeypot and rate limit',
+  },
   'GET /fake-pay/:ref': {
     reason: 'public',
     note: 'dev/test fake payment page (404 in production); shows only the amount of a fake checkout reference',

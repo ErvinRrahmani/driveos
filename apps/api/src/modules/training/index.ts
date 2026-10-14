@@ -1,5 +1,7 @@
 export { AnonymizeStudentCommand } from './commands/anonymize-student.command.js';
 export { ArchiveStudentCommand } from './commands/archive-student.command.js';
+export { CaptureLeadCommand, type CaptureLeadInput } from './commands/capture-lead.command.js';
+export { ConvertLeadCommand } from './commands/convert-lead.command.js';
 export { CreateStudentCommand } from './commands/create-student.command.js';
 export { EnrolStudentCommand } from './commands/enrol-student.command.js';
 export { ExportStudentDataCommand } from './commands/export-student-data.command.js';
@@ -12,6 +14,7 @@ export {
 } from './commands/record-progress.command.js';
 export { RecordTestAttemptCommand } from './commands/record-test-attempt.command.js';
 export { ReplaceStudentInstructorsCommand } from './commands/replace-student-instructors.command.js';
+export { UpdateLeadCommand } from './commands/update-lead.command.js';
 export { UpdateStudentCommand } from './commands/update-student.command.js';
 export {
   type PrivateNoteInput,
@@ -21,6 +24,7 @@ export {
   GetStudentBookingProfileQuery,
   type StudentBookingProfile,
 } from './queries/get-student-booking-profile.query.js';
+export { GetLeadQuery } from './queries/get-lead.query.js';
 export { GetStudentByUserQuery } from './queries/get-student-by-user.query.js';
 export { GetStudentInstructorsQuery } from './queries/get-student-instructors.query.js';
 export {
@@ -44,6 +48,7 @@ export {
   type StudentBookingProfileFilter,
 } from './queries/list-student-booking-profiles.query.js';
 export { HasPassedPracticalQuery } from './queries/has-passed-practical.query.js';
+export { ListLeadsQuery } from './queries/list-leads.query.js';
 export { ListLinkedStudentIdsQuery } from './queries/list-linked-student-ids.query.js';
 export {
   ListProgressEntriesQuery,

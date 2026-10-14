@@ -42,6 +42,7 @@ export const SPEC_TABLES = {
     'test_attempts',
     'rm_student_list',
     'rm_student_lessons',
+    'leads',
   ],
   theory: ['question_packs', 'questions', 'theory_sessions', 'theory_answers'],
   billing: [

@@ -119,7 +119,7 @@ Only `active` items with the flag appear on the page.
 | Route | Auth | Permission | Handler |
 | --- | --- | --- | --- |
 | `GET /v1/public/schools/{slug}` | public, rate limit `public-page` (ip+route) | — | `GetPublicSchoolPageQuery` (school) |
-| `POST /v1/public/schools/{slug}/leads` | public, rate limits `leads` (ip+route) and `leads-contact` (contact) | — | `CaptureLeadCommand` (training) |
+| `POST /v1/public/schools/{slug}/leads` | public, rate limit `leads` (ip+route) | — | `CaptureLeadCommand` (training) |
 | `GET/PUT /v1/school/public-profile` | bearer | `public_page.manage` | school |
 | `GET /v1/leads?status=&cursor=&limit=` | bearer | `leads.read` | `ListLeadsQuery` |
 | `GET /v1/leads/{id}` | bearer | `leads.read` | `GetLeadQuery` |
@@ -139,11 +139,11 @@ The controller resolves the school in a school-less tenant transaction with `sch
 
 ### 5.2 Lead capture
 
-Request: `{ fullName, phone?, email?, licenceClass, message?, isMinor, guardianName?, guardianContact?, consentTextVersion, website?: '' }`. `website` is a honeypot: a non-empty value returns `202 {}` without writing anything. The controller resolves the school as in §5.1 and checks the plan feature; a school without `enrolment_page` returns 404 like an unpublished page.
+Request: `{ fullName, phone?, email?, licenceClass, message?, isMinor, guardianName?, guardianContact?, consentTextVersion, website?: '' }`. `website` is a honeypot: a non-empty value returns `201 { id }` with a throw-away id, without writing anything. The controller resolves the school as in §5.1 and checks the plan feature; a school without `enrolment_page` returns 404 like an unpublished page.
 
 Domain rule `dedupeLead` (pure): if a lead with the same phone or email exists in the last 30 days and is not `lost`, the command returns that lead's id and appends the new message to `note` instead of creating a second row. Response: `201 { id }` either way.
 
-Events: `LeadCaptured` v1 `{ leadId, source, licenceClass, isMinor, capturedAt }`.
+Events: `LeadCaptured` v1 `{ leadId, source, licenceClass, isMinor, fullName, capturedAt }`.
 
 The messaging subscriber for `LeadCaptured` notifies every active membership with `leads.read` (owner, office) with template `lead_captured` (push, email when no device). Quiet hours apply as for other templates.
 
@@ -190,8 +190,8 @@ New: `public_page.manage` (owner), `leads.read` and `leads.manage` (owner, offic
 ## 8. Privacy and abuse
 
 - The lead form shows a consent text with a version; the version and time are stored with the lead. Minors: the guardian's name and contact are required and the consent text says a parent or guardian submits the form (Albania Law 124/2024, Kosovo Law 06/L-082).
-- Rate limits: `leads` 10 per IP per hour per route, `leads-contact` 3 per contact per day; `public-page` 120 per IP per hour. Honeypot field.
-- Leads older than 12 months in `lost` or `converted` state are deleted by the monthly purge job (training `purge-leads` per-school job); `request_ip_hash` is nulled after 30 days.
+- Rate limits: `leads` 10 per IP per hour per route; `public-page` 120 per IP per hour. Honeypot field. There is no per-contact limit (the rate-limit guard keys contacts on `body.contact`, which the lead form does not send); the 30-day dedupe absorbs repeat enquiries instead.
+- Leads in `lost` or `converted` state are deleted 12 months after they were closed by the daily purge job (training `training.lead-purge` per-school job, `15 3 * * *`); `request_ip_hash` is nulled after 30 days.
 - Reviews show only first name and initial. Anonymizing a student deletes their review.
 - Staff reads of a lead are not audited (a lead is not a student record); conversion is audited through the student creation.
 

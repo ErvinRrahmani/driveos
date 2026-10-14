@@ -62,6 +62,8 @@ export const envSchema = z.object({
   RATE_LIMIT_HEALTH_WINDOW_SECONDS: count.default(60),
   RATE_LIMIT_PUBLIC_PAGE_LIMIT: count.default(120),
   RATE_LIMIT_PUBLIC_PAGE_WINDOW_SECONDS: count.default(3600),
+  RATE_LIMIT_LEADS_LIMIT: count.default(10),
+  RATE_LIMIT_LEADS_WINDOW_SECONDS: count.default(3600),
   ALERTS_INTERVAL_MS: millis.default(60_000),
   ALERT_DEAD_LETTERS_THRESHOLD: z.coerce.number().int().min(0).default(0),
   ALERT_OUTBOX_LAG_SECONDS: count.default(60),

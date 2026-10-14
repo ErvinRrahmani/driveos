@@ -130,6 +130,15 @@ const training = [
   ]),
   // Not in SPEC §8: step 7 adds the caller's guardian links for the parent app's consent screens.
   ...group('training', false, [['GET', '/v1/guardian-links', StatusCodes.OK]]),
+  // Enrolment page (design 2026-10-14 §5): the public enquiry form and the lead inbox.
+  ...group('leads', false, [
+    ['POST', '/v1/public/schools/{slug}/leads', StatusCodes.CREATED],
+    ['GET', '/v1/leads', StatusCodes.OK],
+    ['POST', '/v1/leads', StatusCodes.CREATED],
+    ['GET', '/v1/leads/{id}', StatusCodes.OK],
+    ['PATCH', '/v1/leads/{id}', StatusCodes.OK],
+    ['POST', '/v1/leads/{id}/convert', StatusCodes.CREATED],
+  ]),
 ];
 
 const theory = [
@@ -228,6 +237,7 @@ export const IDEMPOTENT_ROUTES: readonly string[] = [
   'POST /v1/ledger/adjustments',
   'POST /v1/lessons',
   'POST /v1/slot-offers/:id/accept',
+  'POST /v1/leads/:id/convert',
 ];
 
 export const PUBLIC_STUB_ROUTES: readonly string[] = [];

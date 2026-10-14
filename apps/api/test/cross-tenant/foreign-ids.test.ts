@@ -13,6 +13,7 @@ import { lessons, slotOffers, waitingList } from '../../src/modules/scheduling/i
 import { openingHours, vehicles } from '../../src/modules/school/infra/schema.js';
 import {
   guardianLinks,
+  leads,
   privateNotes,
   progressEntries,
   studentInstructors,
@@ -63,6 +64,7 @@ interface World {
   conversationId: string;
   messageId: string;
   slotOfferId: string;
+  leadId: string;
 }
 
 interface Case {
@@ -142,6 +144,20 @@ describe('cross-school foreign ids in write bodies', () => {
       conversationId,
       senderUserId: tenant.ownerUserId,
     });
+    const leadId = randomUUID();
+    await tenants.asSchool(tenant, (tx) =>
+      tx.insert(leads).values({
+        id: leadId,
+        schoolId: tenant.schoolId,
+        source: 'manual',
+        fullName: 'Foreign Lead',
+        email: uniqueEmail(),
+        licenceClass: 'B',
+        isMinor: false,
+        consentTextVersion: 'manual',
+        consentedAt: new Date(),
+      }),
+    );
     const slotOfferId = await insertSlotOffer(tenants, tenant, {
       instructorMembershipId: instructor,
       lessonTypeId,
@@ -167,6 +183,7 @@ describe('cross-school foreign ids in write bodies', () => {
       conversationId,
       messageId,
       slotOfferId,
+      leadId,
     };
   }
 
@@ -536,6 +553,17 @@ describe('cross-school foreign ids in write bodies', () => {
           fullName: 'Foreign Id',
           dateOfBirth: '2000-01-01',
           licenceClass: 'B',
+          examLanguage: 'en',
+          primaryInstructorMembershipId: b.instructor,
+        }),
+    },
+    {
+      route: 'POST /v1/leads/:id/convert',
+      field: 'primaryInstructorMembershipId',
+      tables: [leads, students, studentInstructors, invitations],
+      call: (a, b) =>
+        post(`/v1/leads/${a.leadId}/convert`, as(a), {
+          dateOfBirth: '2000-01-01',
           examLanguage: 'en',
           primaryInstructorMembershipId: b.instructor,
         }),

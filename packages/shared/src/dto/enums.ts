@@ -9,6 +9,12 @@ export type PaymentAccountStatus = z.infer<typeof paymentAccountStatusSchema>;
 export const reviewStatusSchema = z.enum(['pending', 'approved', 'hidden']);
 export type ReviewStatus = z.infer<typeof reviewStatusSchema>;
 
+export const leadStatusSchema = z.enum(['new', 'contacted', 'converted', 'lost']);
+export type LeadStatus = z.infer<typeof leadStatusSchema>;
+
+export const leadSourceSchema = z.enum(['page', 'manual']);
+export type LeadSource = z.infer<typeof leadSourceSchema>;
+
 export const transmissionSchema = z.enum(['manual', 'automatic']);
 export type Transmission = z.infer<typeof transmissionSchema>;
 

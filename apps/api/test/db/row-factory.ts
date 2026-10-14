@@ -15,6 +15,7 @@ export type RowSet = Map<string, Row>;
 const OVERRIDES: Record<string, Row> = {
   ledger_entries: { entry_type: 'purchase', minutes: 60 },
   notifications: { address: 'student@example.com' },
+  leads: { phone: '+4915550000020', is_minor: false },
 };
 
 function scalar(column: Column): unknown {

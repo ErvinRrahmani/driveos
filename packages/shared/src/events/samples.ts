@@ -196,6 +196,24 @@ export const EVENT_SAMPLES: EventPayloadByType = {
     takenOn: '2026-09-28',
     result: 'passed',
   },
+  LeadCaptured: {
+    leadId: ids.lead,
+    source: 'page',
+    licenceClass: 'B',
+    isMinor: false,
+    fullName: 'Lena Lead',
+    capturedAt: '2026-10-10T09:00:00.000Z',
+  },
+  LeadStatusChanged: {
+    leadId: ids.lead,
+    status: 'contacted',
+    changedAt: '2026-10-10T11:00:00.000Z',
+  },
+  LeadConverted: {
+    leadId: ids.lead,
+    studentId: ids.student,
+    convertedAt: '2026-10-11T09:00:00.000Z',
+  },
   LessonBooked: {
     ...lessonSlot,
     vehicleId: ids.vehicle,

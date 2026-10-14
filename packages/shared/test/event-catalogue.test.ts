@@ -31,6 +31,9 @@ const SPEC_EVENTS = {
     'InstructorUnassigned',
     'ProgressRecorded',
     'TestAttemptRecorded',
+    'LeadCaptured',
+    'LeadStatusChanged',
+    'LeadConverted',
   ],
   scheduling: [
     'LessonBooked',
@@ -116,8 +119,12 @@ describe('event payload conventions', () => {
   it.each(EVENT_CATALOGUE.map((event) => [event.type, event] as const))(
     '%s carries a currency next to every money amount',
     (_type, event) => {
-      const keys = Object.keys(shapeOf(event.schema));
-      const moneyKeys = keys.filter((key) => key.endsWith('Minor'));
+      const shape = shapeOf(event.schema);
+      const keys = Object.keys(shape);
+      // `isMinor` (a person under the age of majority) is a flag, not an amount.
+      const moneyKeys = keys.filter(
+        (key) => key.endsWith('Minor') && !(shape[key] instanceof z.ZodBoolean),
+      );
       if (moneyKeys.length > 0) expect(keys).toContain('currency');
     },
   );

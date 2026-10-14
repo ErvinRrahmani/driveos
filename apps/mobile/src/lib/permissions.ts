@@ -69,6 +69,8 @@ export const PERMISSIONS = [
   'public_page.manage',
   'reviews.moderate',
   'reviews.submit',
+  'leads.read',
+  'leads.manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -113,6 +115,8 @@ const OFFICE: Permission[] = [
   'waiting_list.manage',
   'slot_offers.manage',
   'reviews.moderate',
+  'leads.read',
+  'leads.manage',
 ];
 
 const INSTRUCTOR: Permission[] = [

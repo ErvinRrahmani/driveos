@@ -17,6 +17,8 @@ const LIMITS = {
   RATE_LIMIT_AUTH_WINDOW_SECONDS: '60',
   RATE_LIMIT_AUTH_CONTACT_LIMIT: '2',
   RATE_LIMIT_AUTH_CONTACT_WINDOW_SECONDS: '60',
+  RATE_LIMIT_LEADS_LIMIT: '2',
+  RATE_LIMIT_LEADS_WINDOW_SECONDS: '60',
 };
 
 describe('rate limits on public routes (Redis)', () => {
@@ -108,6 +110,21 @@ describe('rate limits on public routes (Redis)', () => {
     expect(other.status).not.toBe(StatusCodes.TOO_MANY_REQUESTS);
   });
 
+  it('limits public lead capture per IP and route', async () => {
+    const ip = freshIp();
+    const capture = (from: string) =>
+      http()
+        .post('/v1/public/schools/no-such-school/leads')
+        .set('X-Forwarded-For', from)
+        .send({ fullName: 'Rate Limited', email: 'rate@example.com', licenceClass: 'B' });
+    for (let i = 0; i < 2; i += 1) {
+      expect((await capture(ip)).status).not.toBe(StatusCodes.TOO_MANY_REQUESTS);
+    }
+
+    expect((await capture(ip)).status).toBe(StatusCodes.TOO_MANY_REQUESTS);
+    expect((await capture(freshIp())).status).not.toBe(StatusCodes.TOO_MANY_REQUESTS);
+  });
+
   it('never limits authenticated tenant routes', async () => {
     const ip = freshIp();
     const headers = devAuth(randomUUID(), randomUUID());
@@ -138,6 +155,7 @@ describe('rate limits on public routes (Redis)', () => {
         'POST /v1/auth/logout',
         'POST /v1/invitations/:token/accept',
         'POST /v1/webhooks/payments/:provider',
+        'POST /v1/public/schools/:slug/leads',
         'GET /v1/health',
       ]),
     );

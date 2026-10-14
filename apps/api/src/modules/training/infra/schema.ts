@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   date,
   doublePrecision,
   index,
@@ -226,4 +227,45 @@ export const rmStudentLessons = pgTable(
     ...timestamps(),
   },
   (t) => [index('rm_student_lessons_student_idx').on(t.studentId, t.startAt)],
+);
+
+export const leadsStatus = pgEnum('leads_status', ['new', 'contacted', 'converted', 'lost']);
+export const leadsSource = pgEnum('leads_source', ['page', 'manual']);
+
+export const leads = pgTable(
+  'leads',
+  {
+    id: id(),
+    schoolId: schoolId(),
+    status: leadsStatus('status').notNull().default('new'),
+    source: leadsSource('source').notNull(),
+    fullName: text('full_name').notNull(),
+    phone: text('phone'),
+    email: text('email'),
+    licenceClass: text('licence_class').notNull(),
+    message: text('message'),
+    isMinor: boolean('is_minor').notNull(),
+    guardianName: text('guardian_name'),
+    guardianContact: text('guardian_contact'),
+    consentTextVersion: text('consent_text_version').notNull(),
+    consentedAt: tstz('consented_at').notNull(),
+    note: text('note'),
+    studentId: uuid('student_id').references(() => students.id),
+    convertedAt: tstz('converted_at'),
+    lostAt: tstz('lost_at'),
+    lostReason: text('lost_reason'),
+    requestIpHash: text('request_ip_hash'),
+    version: integer('version').notNull().default(1),
+    ...timestamps(),
+  },
+  (t) => [
+    check('leads_contact_check', sql`${t.phone} is not null or ${t.email} is not null`),
+    check(
+      'leads_guardian_check',
+      sql`not ${t.isMinor} or (${t.guardianName} is not null and ${t.guardianContact} is not null)`,
+    ),
+    index('leads_status_created_idx').on(t.schoolId, t.status, t.createdAt.desc()),
+    index('leads_email_idx').on(t.schoolId, sql`lower(${t.email})`),
+    index('leads_phone_idx').on(t.schoolId, t.phone),
+  ],
 );

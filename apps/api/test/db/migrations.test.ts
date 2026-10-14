@@ -23,7 +23,7 @@ describe('migrations on an empty database', () => {
       `select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );
     expect(rows.map((r) => r.tablename)).toEqual(ALL_TABLES);
-    expect(ALL_TABLES).toHaveLength(74);
+    expect(ALL_TABLES).toHaveLength(75);
   });
 
   it('makes driveos_owner the owner of every table', async () => {

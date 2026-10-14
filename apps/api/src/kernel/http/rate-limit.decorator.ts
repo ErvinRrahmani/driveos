@@ -17,6 +17,7 @@ export const RATE_LIMIT_POLICIES = {
     limit: 'RATE_LIMIT_PUBLIC_PAGE_LIMIT',
     window: 'RATE_LIMIT_PUBLIC_PAGE_WINDOW_SECONDS',
   },
+  leads: { limit: 'RATE_LIMIT_LEADS_LIMIT', window: 'RATE_LIMIT_LEADS_WINDOW_SECONDS' },
 } as const satisfies Record<string, { limit: keyof Env; window: keyof Env }>;
 
 export type RateLimitName = keyof typeof RATE_LIMIT_POLICIES;

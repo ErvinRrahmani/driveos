@@ -275,6 +275,7 @@ All BullMQ queues use the prefix `JOBS_PREFIX` ([`kernel/jobs/queues.ts`](../app
 | `platform.alerts` | every `ALERTS_INTERVAL_MS` | Evaluate alert probes (section 7) | `app_system` |
 | `messaging.notification-dispatch` | every 30 s | Send due notifications per school | `app_rw` per school |
 | `messaging.chat-retention` | `30 3 * * *` | Purge chat messages past retention per school | `app_rw` per school |
+| `training.lead-purge` | `15 3 * * *` | Delete `lost`/`converted` leads closed over 12 months ago; null `request_ip_hash` after 30 days | `app_rw` per school |
 | `scheduling.slot-offer-expiry` | every 60 s | Expire slot offers | per school |
 | `scheduling.slot-offer-gap-scan` | `0 2 * * *` | Find gaps and create fill-the-gap offers | per school |
 | `reporting.growth-report` | `0 * * * *` | Generate last month's growth report once it is due in the school's time zone | `app_rw` per school |
@@ -338,6 +339,7 @@ Where to see them:
 | `fake-pay` | `/fake-pay/*` | IP + route | 60 / 60 s |
 | `health` | `GET /v1/health` | IP | 600 / 60 s |
 | `public-page` | `GET /v1/public/schools/{slug}` (public enrolment page) | IP + route | 120 / 3600 s |
+| `leads` | `POST /v1/public/schools/{slug}/leads` (public enquiry form) | IP + route | 10 / 3600 s |
 
 Login-code issuance has its own limits on top (`AUTH_CODES_*`, enforced by the identity module). Authenticated routes have no per-user rate limit.
 
