@@ -381,6 +381,27 @@ export const studentExportBundleSchema = z.object({
       createdAt: dateTimeSchema,
     }),
   ),
+  /** The enquiry (or enquiries) the student was converted from. */
+  leads: z.array(
+    z.object({
+      id: z.uuid(),
+      source: leadSourceSchema,
+      status: leadStatusSchema,
+      fullName: z.string(),
+      phone: z.string().nullable(),
+      email: z.string().nullable(),
+      licenceClass: licenceClassSchema,
+      message: z.string().nullable(),
+      isMinor: z.boolean(),
+      guardianName: z.string().nullable(),
+      guardianContact: z.string().nullable(),
+      consentTextVersion: z.string(),
+      consentedAt: dateTimeSchema,
+      note: z.string().nullable(),
+      createdAt: dateTimeSchema,
+      convertedAt: dateTimeSchema.nullable(),
+    }),
+  ),
 });
 export type StudentExportBundle = z.infer<typeof studentExportBundleSchema>;
 

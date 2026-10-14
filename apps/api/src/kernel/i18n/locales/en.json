@@ -208,7 +208,9 @@
       "ledger": "Lesson credits",
       "ledger_entry": "{{date}} {{type}}: {{minutes}} min, balance {{balance}} min",
       "documents": "Documents",
-      "document": "{{date}} {{kind}}"
+      "document": "{{date}} {{kind}}",
+      "leads": "Enquiries",
+      "lead": "{{date}} {{name}}, phone: {{phone}}, email: {{email}}, guardian: {{guardian}} {{guardianContact}}, message: {{message}}, note: {{note}}, status: {{status}}, converted: {{converted}}"
     }
   }
 }

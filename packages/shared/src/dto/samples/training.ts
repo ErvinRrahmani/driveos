@@ -424,6 +424,26 @@ const studentExportBundle = {
     },
   ],
   documents: [{ id: ids.document, kind: 'learner_permit', createdAt: '2026-09-20T10:00:00.000Z' }],
+  leads: [
+    {
+      id: ids.lead,
+      source: 'page',
+      status: 'converted',
+      fullName: 'Lena Lead',
+      phone: '+4915550000020',
+      email: 'lena.lead@example.com',
+      licenceClass: 'B',
+      message: 'Can I start in November?',
+      isMinor: false,
+      guardianName: null,
+      guardianContact: null,
+      consentTextVersion: 'lead-consent.v1',
+      consentedAt: '2026-09-01T09:00:00.000Z',
+      note: null,
+      createdAt: '2026-09-01T09:00:00.000Z',
+      convertedAt: '2026-09-02T09:00:00.000Z',
+    },
+  ],
 } satisfies StudentExportBundle;
 
 export const trainingSamples = {

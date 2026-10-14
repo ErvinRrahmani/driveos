@@ -195,6 +195,7 @@ describe('training HTTP: export and anonymize', () => {
         expect.objectContaining({ entryType: 'purchase', minutes: 600, balanceAfter: 600 }),
       ]);
       expect(body.bundle.documents).toEqual([]);
+      expect(body.bundle.leads).toEqual([]);
       const raw = JSON.stringify(res.body);
       expect(raw).not.toContain(SECRET);
       expect(raw).not.toContain(parent.phone);

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Lead, LeadListResponse, LeadStatus, ListLeadsQuery } from '@driveos/shared';
-import { and, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql } from 'drizzle-orm';
 import { notFound } from '../../../kernel/http/errors.js';
 import { idCursor, pageOf } from '../../../kernel/http/paging.js';
 import { TenantContext } from '../../../kernel/tenant/tenant-context.js';
@@ -45,6 +45,20 @@ export class LeadRecords {
   async find(id: string): Promise<LeadRow | null> {
     const [row] = await this.tenant.tx.select().from(leads).where(eq(leads.id, id));
     return row ?? null;
+  }
+
+  /** The leads converted into this student, oldest first (student export, anonymization). */
+  ofStudent(studentId: string): Promise<LeadRow[]> {
+    return this.tenant.tx
+      .select()
+      .from(leads)
+      .where(eq(leads.studentId, studentId))
+      .orderBy(asc(leads.id));
+  }
+
+  /** Deletes the leads converted into this student (a lead is not a financial record). */
+  async deleteOfStudent(studentId: string): Promise<void> {
+    await this.tenant.tx.delete(leads).where(eq(leads.studentId, studentId));
   }
 
   /** Locks a lead of the current school; 404 for an unknown id or another school's lead. */

@@ -539,6 +539,62 @@ describe('training HTTP: leads', () => {
       ]);
     });
 
+    it('puts the lead into the student export and deletes it when the student is anonymized', async () => {
+      const phone = uniquePhone();
+      const guardianEmail = uniqueEmail();
+      const leadId = await captured(
+        leadBody({
+          fullName: 'Paula Private',
+          phone,
+          isMinor: true,
+          guardianName: 'Peter Private',
+          guardianContact: guardianEmail,
+          message: 'Weekends only',
+        }),
+      );
+      const converted = await http
+        .post(`/v1/leads/${leadId}/convert`)
+        .set(office.headers)
+        .set('Idempotency-Key', `convert-${randomUUID()}`)
+        .send({ dateOfBirth: '2009-01-02', examLanguage: 'en', invite: false });
+      expect(converted.status, JSON.stringify(converted.body)).toBe(StatusCodes.CREATED);
+      const studentId = converted.body.studentId as string;
+
+      const exported = await http.post(`/v1/students/${studentId}/export`).set(office.headers);
+      expect(exported.status, JSON.stringify(exported.body)).toBe(StatusCodes.OK);
+      expect(exported.body.bundle.leads).toEqual([
+        {
+          id: leadId,
+          source: 'page',
+          status: 'converted',
+          fullName: 'Paula Private',
+          phone,
+          email: null,
+          licenceClass: 'B',
+          message: 'Weekends only',
+          isMinor: true,
+          guardianName: 'Peter Private',
+          guardianContact: guardianEmail,
+          consentTextVersion: 'lead-consent.v1',
+          consentedAt: expect.any(String),
+          note: null,
+          createdAt: expect.any(String),
+          convertedAt: expect.any(String),
+        },
+      ]);
+
+      const anonymized = await http.delete(`/v1/students/${studentId}`).set(authHeaders(A));
+      expect(anonymized.status, JSON.stringify(anonymized.body)).toBe(StatusCodes.OK);
+      expect(await leadRow(leadId)).toBeUndefined();
+      const left = await system.query(
+        `select id from leads where phone = $1 or guardian_contact = $2`,
+        [phone, guardianEmail],
+      );
+      expect(left.rows).toEqual([]);
+      const student = await system.query(`select status from students where id = $1`, [studentId]);
+      expect(student.rows).toEqual([{ status: 'anonymized' }]);
+    });
+
     it('rejects a body without the date of birth', async () => {
       const leadId = await captured(leadBody());
       const res = await http

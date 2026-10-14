@@ -572,7 +572,10 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   `{ leadId, studentId, convertedAt }` (aggregate `lead`, aggregate version = `leads.version`, so
   note-only changes and repeat enquiries leave gaps). Worker job `training.lead-purge`
   (`infra/lead-purge.job.ts` `LeadPurgeJob`, `15 3 * * *`, runs the purge command per school via
-  `PerSchoolJobs`). Staff reads of a lead are not audited (design §8).
+  `PerSchoolJobs`). Staff reads of a lead are not audited (design §8). Privacy: the student data
+  export (`ExportStudentDataCommand`) lists the student's converted lead(s) under `bundle.leads`
+  (name, contacts, guardian, message, note, status, dates), and `AnonymizeStudentCommand` deletes
+  them in the same transaction.
 
 ### theory
 

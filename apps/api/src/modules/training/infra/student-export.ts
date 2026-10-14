@@ -13,6 +13,7 @@ import { QueryBus } from '../../../kernel/cqrs/index.js';
 import { t } from '../../../kernel/i18n/i18n.js';
 import { ListInvoicesQuery, ListLedgerEntriesQuery } from '../../billing/index.js';
 import { ListDocumentsQuery } from '../../documents/index.js';
+import { LeadRecords } from './lead-records.js';
 import { People } from './people.js';
 import { ProgressRecords } from './progress-records.js';
 import { StudentListRows } from './student-list.js';
@@ -42,6 +43,7 @@ export class StudentExport {
     private readonly progress: ProgressRecords,
     private readonly list: StudentListRows,
     private readonly people: People,
+    private readonly leads: LeadRecords,
   ) {}
 
   async bundle(actor: Principal, student: StudentRow): Promise<StudentExportBundle> {
@@ -96,6 +98,24 @@ export class StudentExport {
         id: document.id,
         kind: document.kind,
         createdAt: document.createdAt,
+      })),
+      leads: (await this.leads.ofStudent(student.id)).map((lead) => ({
+        id: lead.id,
+        source: lead.source,
+        status: lead.status,
+        fullName: lead.fullName,
+        phone: lead.phone,
+        email: lead.email,
+        licenceClass: lead.licenceClass,
+        message: lead.message,
+        isMinor: lead.isMinor,
+        guardianName: lead.guardianName,
+        guardianContact: lead.guardianContact,
+        consentTextVersion: lead.consentTextVersion,
+        consentedAt: lead.consentedAt.toISOString(),
+        note: lead.note,
+        createdAt: lead.createdAt.toISOString(),
+        convertedAt: lead.convertedAt?.toISOString() ?? null,
       })),
     };
   }
@@ -204,6 +224,22 @@ export class StudentExport {
       t('training.export.documents'),
       ...bundle.documents.map((document) =>
         t('training.export.document', { date: document.createdAt, kind: document.kind }),
+      ),
+      '',
+      t('training.export.leads'),
+      ...bundle.leads.map((lead) =>
+        t('training.export.lead', {
+          date: lead.createdAt,
+          name: lead.fullName,
+          phone: lead.phone ?? none,
+          email: lead.email ?? none,
+          guardian: lead.guardianName ?? none,
+          guardianContact: lead.guardianContact ?? '',
+          message: lead.message ?? none,
+          note: lead.note ?? none,
+          status: lead.status,
+          converted: lead.convertedAt ?? none,
+        }),
       ),
     ]);
   }

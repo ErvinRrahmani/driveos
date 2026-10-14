@@ -14,6 +14,7 @@ import { AUDIT_WRITER, type AuditWriter } from '../../platform/index.js';
 import { anonymizedStudentFields } from '../domain/anonymization.js';
 import { StudentStream } from '../events/student-stream.js';
 import { Assignments } from '../infra/assignments.js';
+import { LeadRecords } from '../infra/lead-records.js';
 import {
   enrolments,
   guardianLinks,
@@ -36,6 +37,7 @@ export class AnonymizeStudentHandler implements ICommandHandler<
     private readonly records: StudentRecords,
     private readonly assignments: Assignments,
     private readonly list: StudentListRows,
+    private readonly leads: LeadRecords,
     private readonly commandBus: CommandBus,
     private readonly publisher: EventPublisher,
     @Inject(AUDIT_WRITER) private readonly audit: AuditWriter,
@@ -57,6 +59,8 @@ export class AnonymizeStudentHandler implements ICommandHandler<
       .set({ revokedAt: now, version: sql`${guardianLinks.version} + 1` })
       .where(and(eq(guardianLinks.studentId, studentId), isNull(guardianLinks.revokedAt)));
     await tx.delete(privateNotes).where(eq(privateNotes.studentId, studentId));
+    // The enquiry the student came from holds their name, contacts and guardian (design §8).
+    await this.leads.deleteOfStudent(studentId);
     await tx
       .update(progressEntries)
       .set({ note: '', version: sql`${progressEntries.version} + 1` })
