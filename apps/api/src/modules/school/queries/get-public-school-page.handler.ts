@@ -18,6 +18,8 @@ import { branches, openingHours, schoolReviews, schools } from '../infra/schema.
 import { GetPublicSchoolPageQuery } from './get-public-school-page.query.js';
 
 const REVIEWS_ON_PAGE = 20;
+/** Shown when the school has no active lesson types yet, so the enrolment form always has a choice. */
+const DEFAULT_LICENCE_CLASSES: readonly string[] = ['B'];
 
 type Page = PublicSchoolPage;
 
@@ -130,7 +132,7 @@ export class GetPublicSchoolPageHandler implements IQueryHandler<GetPublicSchool
     };
   }
 
-  /** Sorted distinct licence classes of the school's active lesson types (scheduling). */
+  /** Sorted distinct licence classes of the school's active lesson types (scheduling), else `B`. */
   private async licenceClasses(): Promise<string[]> {
     const types: LessonType[] = [];
     let cursor: string | undefined;
@@ -141,6 +143,7 @@ export class GetPublicSchoolPageHandler implements IQueryHandler<GetPublicSchool
       types.push(...page.items);
       cursor = page.nextCursor ?? undefined;
     } while (cursor);
-    return [...new Set(types.map((type) => type.licenceClass))].sort();
+    const classes = [...new Set(types.map((type) => type.licenceClass))].sort();
+    return classes.length > 0 ? classes : [...DEFAULT_LICENCE_CLASSES];
   }
 }

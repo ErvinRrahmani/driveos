@@ -196,7 +196,8 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   with opening hours (own hours, else school-wide), billing `ListPublicPriceItemsQuery` when
   `showPrices`, active instructors' names via `MembershipDirectory` when `showInstructors`, the
   newest 20 approved reviews with count and average (`averageRatingTenths`), the distinct licence
-  classes of active lesson types via scheduling `ListLessonTypesQuery`, and
+  classes of active lesson types via scheduling `ListLessonTypesQuery` (`['B']` when there are
+  none), and
   `consentTextVersion = LEAD_CONSENT_TEXT_VERSION` (`lead-consent.v1`)).
 - Public route: `GET /v1/public/schools/{slug}` (`@Public()`, rate limit `public-page` 120 per IP
   per hour, `Cache-Control: public, max-age=60`); `PublicSchoolController` → `PublicPages.render`

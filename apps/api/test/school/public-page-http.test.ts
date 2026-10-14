@@ -347,6 +347,23 @@ describe('school public profile and public page', () => {
       }
     });
 
+    it('lists the sorted distinct licence classes of active lesson types, else B', async () => {
+      const page = async () =>
+        (await http.get('/v1/public/schools/school-a')).body.licenceClasses as string[];
+      expect(await page()).toEqual(['A', 'B']);
+      const deactivated = await system.query<{ id: string }>(
+        `update lesson_types set active = false where school_id = $1 and active returning id`,
+        [A.schoolId],
+      );
+      try {
+        expect(await page()).toEqual(['B']);
+      } finally {
+        await system.query(`update lesson_types set active = true where id = any($1)`, [
+          deactivated.rows.map((row) => row.id),
+        ]);
+      }
+    });
+
     it('shows only approved reviews, newest first, and the average', async () => {
       const review = async (
         status: 'pending' | 'approved' | 'hidden',
