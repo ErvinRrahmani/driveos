@@ -1,0 +1,208 @@
+{
+  "errors": {
+    "not_found": "The requested resource was not found.",
+    "internal": "Something went wrong. Please try again.",
+    "unauthenticated": "Authentication is required.",
+    "validation": "Request validation failed.",
+    "conflict": "The request conflicts with existing data.",
+    "idempotency_key_required": "This request requires an Idempotency-Key header.",
+    "idempotency_key_invalid": "The Idempotency-Key header must be at most 255 characters.",
+    "idempotency_key_reused": "This Idempotency-Key was already used for a different request.",
+    "school_required": "This request requires a school.",
+    "token_expired": "The access token has expired. Refresh the session.",
+    "invalid_code": "The code is wrong or no longer valid. Request a new code.",
+    "code_expired": "The code has expired. Request a new code.",
+    "no_account": "There is no account for this contact yet. Accept your invitation first.",
+    "invalid_refresh_token": "The session is no longer valid. Sign in again.",
+    "refresh_reused": "This session was ended for security reasons. Sign in again.",
+    "forbidden": "You do not have permission to do this.",
+    "invitation_expired": "This invitation has expired. Ask the school for a new one.",
+    "invitation_used": "This invitation has already been used.",
+    "membership_disabled": "Your access to this school is disabled. Contact the school.",
+    "contact_conflict": "The phone number and email of this invitation belong to different accounts.",
+    "owner_required": "Only an owner can change the owner role.",
+    "last_owner": "A school needs at least one active owner.",
+    "not_implemented": "This endpoint is not available yet.",
+    "rate_limited": "Too many requests. Please wait a moment and try again.",
+    "support_session_ended": "This support session has ended. Start a new one to continue.",
+    "plan_code_taken": "A plan with this code already exists.",
+    "plan_inactive": "This plan is no longer offered.",
+    "statement_already_paid": "This statement is already marked as paid.",
+    "insufficient_balance": "The student does not have enough lesson credit for this.",
+    "entitlement_missing": "The student has no unused entitlement of this kind.",
+    "checkout_disabled": "Online payment is not available at this school yet.",
+    "invalid_signature": "The webhook signature is missing or invalid.",
+    "unknown_payment": "No payment matches this provider reference.",
+    "amount_mismatch": "The amount or currency does not match the price.",
+    "refund_exceeds_payment": "The refund is larger than what is left of the payment.",
+    "payment_not_refundable": "This payment cannot be refunded.",
+    "payment_account_missing": "The school has no payment account for this provider.",
+    "invoice_details_missing": "Invoice details are missing. Complete the school and student details first.",
+    "refund_failed": "The payment provider declined the refund.",
+    "student_not_active": "This student is archived or anonymized.",
+    "lesson_conflict": "The instructor, vehicle or student already has a lesson at this time.",
+    "slot_unavailable": "This time cannot be booked.",
+    "lesson_not_booked": "The lesson is no longer booked.",
+    "lesson_not_started": "The lesson has not started yet.",
+    "version_conflict": "The lesson was changed by someone else.",
+    "op_id_reused": "This operation id was already used by someone else. Send the operation with a new id.",
+    "already_signed": "You have already signed this contract in this role.",
+    "contract_template_inactive": "This contract template is no longer in use. Choose an active template.",
+    "upload_incomplete": "The upload has not finished or does not match the file that was announced. Upload the file again.",
+    "document_not_ready": "This document is still being uploaded.",
+    "chat_read_only": "You can read this conversation but cannot post in it.",
+    "question_pack_exists": "This version of the question pack is already imported for this country, licence class and language.",
+    "question_pack_already_published": "This question pack is already published.",
+    "question_pack_missing": "No question pack is published yet for this licence class and exam language.",
+    "premium_required": "This needs premium theory. Free students get practice and 3 mock exams per week.",
+    "no_mistakes": "There are no open mistakes to practise yet.",
+    "session_finished": "This theory session is already finished.",
+    "session_expired": "The time for this mock exam is up. Finish the session to see your result.",
+    "offer_unavailable": "This offer has already been taken, has expired or was not made to this student.",
+    "no_eligible_students": "No student can take this slot: nobody on the waiting list or in the area has enough credit, the right licence class and this instructor.",
+    "already_on_waiting_list": "This student is already on the waiting list for this lesson type.",
+    "growth_report_missing": "There is no growth report for this month yet."
+  },
+  "notifications": {
+    "login_code": {
+      "sms": "{{code}} is your DriveOS sign-in code. It expires in {{minutes}} minutes.",
+      "email_subject": "Your DriveOS sign-in code",
+      "email_text": "Your DriveOS sign-in code is {{code}}.\n\nIt expires in {{minutes}} minutes. If you did not request it, you can ignore this email."
+    },
+    "invitation": {
+      "sms": "{{schoolName}} invited you to DriveOS. Accept here: {{url}}",
+      "email_subject": "{{schoolName}} invited you to DriveOS",
+      "email_text": "{{schoolName}} invited you to DriveOS.\n\nAccept the invitation here: {{url}}\n\nThe link expires on {{expiresOn}}."
+    },
+    "lesson_booked": {
+      "push_title": "Lesson booked",
+      "push_body": "Your lesson with {{instructor}} on {{when}} is booked.",
+      "email_subject": "Lesson booked for {{when}}",
+      "email_text": "Your lesson with {{instructor}} at {{schoolName}} on {{when}} is booked."
+    },
+    "lesson_moved": {
+      "push_title": "Lesson moved",
+      "push_body": "Your lesson with {{instructor}} moved from {{previousWhen}} to {{when}}.",
+      "email_subject": "Lesson moved to {{when}}",
+      "email_text": "Your lesson with {{instructor}} at {{schoolName}} moved from {{previousWhen}} to {{when}}."
+    },
+    "lesson_cancelled": {
+      "push_title": "Lesson cancelled",
+      "push_body": "Your lesson with {{instructor}} on {{when}} was cancelled.",
+      "email_subject": "Lesson on {{when}} cancelled",
+      "email_text": "Your lesson with {{instructor}} at {{schoolName}} on {{when}} was cancelled."
+    },
+    "lesson_reminder": {
+      "push_title": "Lesson reminder",
+      "push_body": "Your lesson with {{instructor}} is on {{when}}.",
+      "email_subject": "Reminder: lesson on {{when}}",
+      "email_text": "This is a reminder of your lesson with {{instructor}} at {{schoolName}} on {{when}}."
+    },
+    "invoice_issued": {
+      "push_title": "New invoice",
+      "push_body": "Invoice {{number}} for {{amount}} from {{schoolName}}.",
+      "email_subject": "Invoice {{number}} from {{schoolName}}",
+      "email_text": "{{schoolName}} issued invoice {{number}} for {{amount}}. You can view it in the DriveOS app."
+    },
+    "contract_created": {
+      "push_title": "Contract to sign",
+      "push_body": "{{schoolName}} sent you a contract to sign.",
+      "email_subject": "{{schoolName}} sent you a contract to sign",
+      "email_text": "{{schoolName}} sent you a contract. Open the DriveOS app to read and sign it."
+    },
+    "platform_statement_issued": {
+      "push_title": "DriveOS statement",
+      "push_body": "Your DriveOS statement for {{month}} is ready: {{amount}}.",
+      "email_subject": "Your DriveOS statement for {{month}}",
+      "email_text": "The DriveOS statement for {{schoolName}} for {{month}} is ready. Total: {{amount}}."
+    },
+    "guardian_consent_requested": {
+      "push_title": "Consent needed",
+      "push_body": "{{schoolName}} asks for your consent so your child can start driving lessons.",
+      "email_subject": "{{schoolName}} asks for your consent",
+      "email_text": "{{schoolName}} linked you as a guardian of a student under the age of majority. The student can start lessons once you give your consent.\n\nReview and give consent here: {{url}}"
+    },
+    "growth_report_generated": {
+      "push_title": "Growth report",
+      "push_body": "Your growth report for {{month}} is ready.",
+      "email_subject": "Your growth report for {{month}}",
+      "email_text": "The growth report for {{schoolName}} for {{month}} is ready in DriveOS."
+    },
+    "message_received": {
+      "push_title": "{{sender}}",
+      "push_body": "{{preview}}"
+    },
+    "slot_offer_created": {
+      "push_title": "Free lesson slot",
+      "push_body": "A lesson slot on {{when}} is free. Offer ends {{expires}}.",
+      "email_subject": "Free lesson slot on {{when}}",
+      "email_text": "{{schoolName}} has a free lesson slot on {{when}}. Book it in the DriveOS app before {{expires}}."
+    }
+  },
+  "invoices": {
+    "unnamed_buyer": "Student",
+    "credit_note_line": "Refund: {{description}}",
+    "pdf": {
+      "title_invoice": "Invoice {{number}}",
+      "title_credit_note": "Credit note {{number}}",
+      "issued_on": "Date of issue: {{date}}",
+      "credit_note_for": "Corrects invoice {{number}}",
+      "seller": "Seller",
+      "buyer": "Buyer",
+      "tax_id": "Tax ID: {{taxId}}",
+      "line": "{{description}}  {{quantity}} x {{unit}}  tax {{rate}} ({{tax}})  {{total}}",
+      "subtotal": "Net: {{amount}}",
+      "tax": "Tax: {{amount}}",
+      "total": "Total: {{amount}}",
+      "tax_included": "Prices include tax."
+    }
+  },
+  "fake_pay": {
+    "title": "Fake payment (development only)",
+    "amount": "Amount: {{amount}}",
+    "succeed": "Pay",
+    "fail": "Decline",
+    "succeeded": "Payment succeeded",
+    "failed": "Payment declined",
+    "webhook_status": "Webhook delivered, response status {{status}}."
+  },
+  "training": {
+    "export": {
+      "title": "Student data export: {{name}}",
+      "exported_at": "Exported at {{date}}",
+      "student": "Student",
+      "field": "{{label}}: {{value}}",
+      "labels": {
+        "full_name": "Name",
+        "date_of_birth": "Date of birth",
+        "phone": "Phone",
+        "email": "Email",
+        "licence_class": "Licence class",
+        "exam_language": "Exam language",
+        "test_date": "Test date",
+        "area": "Area",
+        "pickup_address": "Pickup address",
+        "status": "Status"
+      },
+      "none": "none",
+      "enrolments": "Enrolments",
+      "enrolment": "{{course}} ({{licenceClass}}) from {{start}} to {{end}}",
+      "open_end": "today",
+      "guardians": "Guardians",
+      "guardian": "{{name}}, consent: {{consent}}, revoked: {{revoked}}",
+      "lessons": "Lessons",
+      "lesson": "{{start}} to {{end}}, {{status}}, {{instructor}}",
+      "progress": "Progress ({{pct}}%)",
+      "progress_item": "{{code}} {{title}}: level {{level}}, lessons {{lessons}}",
+      "progress_entry": "{{start}} {{code}}: level {{level}} {{note}}",
+      "test_attempts": "Test attempts",
+      "test_attempt": "{{date}} {{kind}}: {{result}} {{notes}}",
+      "invoices": "Invoices",
+      "invoice": "{{number}} {{kind}} {{status}} {{date}}: {{total}} {{currency}}",
+      "ledger": "Lesson credits",
+      "ledger_entry": "{{date}} {{type}}: {{minutes}} min, balance {{balance}} min",
+      "documents": "Documents",
+      "document": "{{date}} {{kind}}"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+CREATE INDEX "change_feed_audience_seq_idx" ON "change_feed" USING btree ("school_id","audience_membership_id","seq");

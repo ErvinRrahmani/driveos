@@ -1,0 +1,64 @@
+name: driveos
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-driveos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-driveos}
+      POSTGRES_DB: ${POSTGRES_DB:-driveos}
+    ports:
+      - '${POSTGRES_PORT:-15432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '${REDIS_PORT:-16379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-driveos}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-driveos-dev-secret}
+      MINIO_KMS_SECRET_KEY: ${MINIO_KMS_SECRET_KEY:-driveos-dev-key:VuwI5hcLfqVpY3y7dnqdBuYvOnZ8XpBie8iQVkWdH3M=}
+    ports:
+      - '${MINIO_API_PORT:-19000}:9000'
+      - '${MINIO_CONSOLE_PORT:-19001}:9001'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - '${MAILPIT_SMTP_PORT:-11025}:1025'
+      - '${MAILPIT_UI_PORT:-18025}:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

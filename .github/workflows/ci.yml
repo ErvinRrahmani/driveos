@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Copy example env files
+        run: |
+          cp .env.example .env
+          for f in apps/*/.env.example; do cp "$f" "${f%.example}"; done
+
+      - name: Start compose services
+        run: docker compose up -d --wait
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Recreate and migrate the database
+        run: pnpm --filter @driveos/api db:reset
+
+      - name: Seed the database
+        run: pnpm --filter @driveos/api db:seed
+
+      - run: pnpm generate
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      - name: Compose logs on failure
+        if: failure()
+        run: docker compose logs

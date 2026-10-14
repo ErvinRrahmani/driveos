@@ -1,0 +1,26 @@
+{
+  "name": "@driveos/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./module-boundaries": "./src/module-boundaries.js"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@eslint/js": "^10",
+    "eslint": "^10",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7",
+    "globals": "^17.13.0",
+    "typescript-eslint": "^8.71"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "vitest": "^5"
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791409150119,
+      "tag": "0000_btree_gist",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791409182060,
+      "tag": "0001_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791409189469,
+      "tag": "0002_lesson_ledger_charge_constraints",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791409972901,
+      "tag": "0003_refresh_token_membership_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791409975641,
+      "tag": "0004_grants_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791409976021,
+      "tag": "0005_security_definer",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791412480522,
+      "tag": "0006_projection_positions",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791415014189,
+      "tag": "0007_refresh_token_successor",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791416530089,
+      "tag": "0008_membership_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791423266982,
+      "tag": "0009_platform_statement_functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791425160034,
+      "tag": "0010_billing_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791426675941,
+      "tag": "0011_payments_price_item",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791428238495,
+      "tag": "0012_platform_charges_reversal",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791429658738,
+      "tag": "0013_students_full_name",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791431502975,
+      "tag": "0014_training_records",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791433861150,
+      "tag": "0015_scheduling_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791665612269,
+      "tag": "0016_documents_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791666979734,
+      "tag": "0017_messaging_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791668309232,
+      "tag": "0018_notifications_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791670503622,
+      "tag": "0019_question_pack_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791671498368,
+      "tag": "0020_theory_session_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791738989113,
+      "tag": "0021_slot_offer_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791742273200,
+      "tag": "0022_change_feed_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791744519423,
+      "tag": "0023_reporting_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791748113551,
+      "tag": "0024_payment_webhook_failures",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791802309230,
+      "tag": "0025_device_token_pruning",
+      "breakpoints": true
+    }
+  ]
+}

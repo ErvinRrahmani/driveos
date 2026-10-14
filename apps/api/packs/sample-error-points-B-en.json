@@ -1,0 +1,76 @@
+{
+  "country": "XY",
+  "licenceClass": "B",
+  "language": "en",
+  "version": "2026.1",
+  "exam": {
+    "rules": "error_points",
+    "questions": 4,
+    "timeLimitMinutes": 10,
+    "maxErrorPoints": 3,
+    "categories": { "signs": 2, "rules": 2 }
+  },
+  "questions": [
+    {
+      "ref": "SAMPLE-EP-1.01",
+      "category": "signs",
+      "body": "SAMPLE: What does a red octagonal sign usually mean?",
+      "media": null,
+      "answers": ["Give way", "Stop", "No entry"],
+      "correct": [1],
+      "points": 2,
+      "explanation": "SAMPLE: A red octagon is the usual stop sign."
+    },
+    {
+      "ref": "SAMPLE-EP-1.02",
+      "category": "signs",
+      "body": "SAMPLE: Which shapes are commonly used for warning signs?",
+      "media": "sample/warning-signs.png",
+      "answers": ["Triangle", "Circle", "Diamond"],
+      "correct": [0, 2],
+      "points": 3,
+      "explanation": "SAMPLE: Warning signs are often triangles or diamonds."
+    },
+    {
+      "ref": "SAMPLE-EP-1.03",
+      "category": "signs",
+      "body": "SAMPLE: A blue circular sign usually gives what kind of instruction?",
+      "media": null,
+      "answers": ["A prohibition", "A mandatory instruction", "A warning"],
+      "correct": [1],
+      "points": 2,
+      "explanation": "SAMPLE: Blue circles usually give mandatory instructions."
+    },
+    {
+      "ref": "SAMPLE-EP-2.01",
+      "category": "rules",
+      "body": "SAMPLE: A school bus with flashing red lights has stopped ahead. What do you do?",
+      "media": null,
+      "answers": ["Overtake carefully", "Stop and wait", "Sound the horn and pass"],
+      "correct": [1],
+      "points": 5,
+      "explanation": "SAMPLE: Stop and wait until the lights stop flashing.",
+      "instantFail": true
+    },
+    {
+      "ref": "SAMPLE-EP-2.02",
+      "category": "rules",
+      "body": "SAMPLE: What should you do at a pedestrian crossing when someone is waiting to cross?",
+      "media": null,
+      "answers": ["Speed up", "Stop and let them cross", "Flash your lights"],
+      "correct": [1],
+      "points": 4,
+      "explanation": "SAMPLE: Pedestrians waiting at a crossing have priority."
+    },
+    {
+      "ref": "SAMPLE-EP-2.03",
+      "category": "rules",
+      "body": "SAMPLE: When must you use dipped headlights?",
+      "media": null,
+      "answers": ["At night", "In poor visibility", "Only on motorways"],
+      "correct": [0, 1],
+      "points": 2,
+      "explanation": "SAMPLE: Use dipped headlights at night and in poor visibility."
+    }
+  ]
+}

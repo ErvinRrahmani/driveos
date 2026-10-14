@@ -1,0 +1,139 @@
+{
+  "country": "XX",
+  "licenceClass": "B",
+  "language": "en",
+  "version": "2026.1",
+  "exam": {
+    "rules": "fraction",
+    "questions": 10,
+    "timeLimitMinutes": 15,
+    "passMark": 0.8,
+    "categories": { "signs": 3, "rules": 5, "safety": 2 }
+  },
+  "questions": [
+    {
+      "ref": "SAMPLE-1.01",
+      "category": "signs",
+      "body": "SAMPLE: What does a red octagonal sign usually mean?",
+      "media": null,
+      "answers": ["Give way", "Stop", "No entry"],
+      "correct": [1],
+      "points": 2,
+      "explanation": "SAMPLE: A red octagon is the usual stop sign."
+    },
+    {
+      "ref": "SAMPLE-1.02",
+      "category": "signs",
+      "body": "SAMPLE: What does an upside-down triangle with a red border usually mean?",
+      "media": null,
+      "answers": ["Give way", "Danger ahead", "End of all restrictions"],
+      "correct": [0],
+      "points": 2,
+      "explanation": "SAMPLE: An inverted triangle usually means give way."
+    },
+    {
+      "ref": "SAMPLE-1.03",
+      "category": "signs",
+      "body": "SAMPLE: Which shapes are commonly used for warning signs?",
+      "media": null,
+      "answers": ["Triangle", "Circle", "Diamond"],
+      "correct": [0, 2],
+      "points": 3,
+      "explanation": "SAMPLE: Warning signs are often triangles or diamonds."
+    },
+    {
+      "ref": "SAMPLE-1.04",
+      "category": "signs",
+      "body": "SAMPLE: A blue circular sign usually gives what kind of instruction?",
+      "media": null,
+      "answers": ["A prohibition", "A mandatory instruction", "A warning"],
+      "correct": [1],
+      "points": 2,
+      "explanation": "SAMPLE: Blue circles usually give mandatory instructions."
+    },
+    {
+      "ref": "SAMPLE-2.01",
+      "category": "rules",
+      "body": "SAMPLE: At an unmarked junction, who usually has priority in a right-hand traffic country?",
+      "media": null,
+      "answers": ["Traffic from the left", "Traffic from the right", "The larger vehicle"],
+      "correct": [1],
+      "points": 3,
+      "explanation": "SAMPLE: Many right-hand traffic countries use priority to the right."
+    },
+    {
+      "ref": "SAMPLE-2.02",
+      "category": "rules",
+      "body": "SAMPLE: When may you overtake on the inside lane of a motorway?",
+      "media": null,
+      "answers": ["Never as a general rule", "Whenever it is faster", "Only at night"],
+      "correct": [0],
+      "points": 2,
+      "explanation": "SAMPLE: Overtaking on the inside is generally not allowed."
+    },
+    {
+      "ref": "SAMPLE-2.03",
+      "category": "rules",
+      "body": "SAMPLE: What should you do when an emergency vehicle with flashing lights approaches?",
+      "media": null,
+      "answers": ["Speed up", "Make room for it safely", "Stop in the middle of the road"],
+      "correct": [1],
+      "points": 2,
+      "explanation": "SAMPLE: Make room safely and let it pass."
+    },
+    {
+      "ref": "SAMPLE-2.04",
+      "category": "rules",
+      "body": "SAMPLE: Which documents should you usually carry while driving?",
+      "media": null,
+      "answers": ["Driving licence", "Vehicle registration", "School report"],
+      "correct": [0, 1],
+      "points": 3,
+      "explanation": "SAMPLE: Carry your licence and the vehicle papers."
+    },
+    {
+      "ref": "SAMPLE-2.05",
+      "category": "rules",
+      "body": "SAMPLE: A traffic light shows amber after green. What should you do?",
+      "media": null,
+      "answers": ["Stop if you can do so safely", "Accelerate to pass", "Sound the horn"],
+      "correct": [0],
+      "points": 2,
+      "explanation": "SAMPLE: Amber means stop unless stopping would be unsafe."
+    },
+    {
+      "ref": "SAMPLE-3.01",
+      "category": "safety",
+      "body": "SAMPLE: How does wet weather affect stopping distance?",
+      "media": null,
+      "answers": ["It gets shorter", "It stays the same", "It gets longer"],
+      "correct": [2],
+      "points": 2,
+      "explanation": "SAMPLE: Stopping distances grow on wet roads."
+    },
+    {
+      "ref": "SAMPLE-3.02",
+      "category": "safety",
+      "body": "SAMPLE: Who must wear a seat belt in a car?",
+      "media": null,
+      "answers": ["Only the driver", "Everyone in the car", "Only front-seat passengers"],
+      "correct": [1],
+      "points": 2,
+      "explanation": "SAMPLE: Everyone must wear a seat belt."
+    },
+    {
+      "ref": "SAMPLE-3.03",
+      "category": "safety",
+      "body": "SAMPLE: What is a safe reaction when you feel tired on a long drive?",
+      "media": null,
+      "answers": [
+        "Open the window and keep going",
+        "Take a break",
+        "Drive faster to arrive sooner"
+      ],
+      "correct": [1],
+      "points": 2,
+      "explanation": "SAMPLE: Stop and rest when you feel tired."
+    }
+  ]
+}

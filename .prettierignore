@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+.turbo
+pnpm-lock.yaml
+docs
+.context
+.claude
+CLAUDE.md
+apps/api/openapi.json
+packages/shared/src/client/generated
+packages/shared/src/mocks/generated
+apps/admin/src/routeTree.gen.ts
+apps/mobile/.expo
+apps/mobile/expo-env.d.ts
+apps/api/drizzle
+.playwright-mcp

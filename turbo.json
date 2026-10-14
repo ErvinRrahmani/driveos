@@ -1,0 +1,36 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "agentGuidance": false,
+  "envMode": "loose",
+  "globalDependencies": ["tsconfig.base.json", ".env"],
+  "tasks": {
+    "generate": {
+      "dependsOn": ["^build"],
+      "outputs": ["openapi.json", "src/routeTree.gen.ts"]
+    },
+    "@driveos/shared#generate": {
+      "dependsOn": ["@driveos/api#generate"],
+      "inputs": ["$TURBO_ROOT$/apps/api/openapi.json", "package.json", "scripts/**"],
+      "outputs": ["src/client/generated/**", "src/mocks/generated/**"]
+    },
+    "@driveos/shared#build": {
+      "outputs": ["dist/**"]
+    },
+    "build": {
+      "dependsOn": ["^build", "^generate", "generate"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build", "^generate", "generate"]
+    },
+    "test": {
+      "dependsOn": ["^build", "^generate", "generate"]
+    },
+    "lint": {},
+    "dev": {
+      "dependsOn": ["^build", "^generate"],
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

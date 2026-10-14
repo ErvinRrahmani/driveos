@@ -1,0 +1,3 @@
+CREATE UNIQUE INDEX "theory_answers_session_question_key" ON "theory_answers" USING btree ("session_id","question_id");--> statement-breakpoint
+CREATE INDEX "theory_answers_school_question_idx" ON "theory_answers" USING btree ("school_id","question_id");--> statement-breakpoint
+CREATE INDEX "theory_sessions_student_mode_started_idx" ON "theory_sessions" USING btree ("school_id","student_id","mode","started_at");

@@ -1,0 +1,22 @@
+{
+  "name": "driveos",
+  "private": true,
+  "packageManager": "pnpm@8.15.9",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "generate": "turbo run generate",
+    "lint": "prettier --check . && turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9",
+    "turbo": "^2.11.7",
+    "typescript": "~6.0.3"
+  }
+}

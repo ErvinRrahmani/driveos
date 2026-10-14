@@ -1,0 +1,1 @@
+ALTER TABLE "refresh_tokens" ALTER COLUMN "membership_id" DROP NOT NULL;
