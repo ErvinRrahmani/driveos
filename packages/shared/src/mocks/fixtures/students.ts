@@ -29,6 +29,14 @@ export const STUDENT_FIXTURES = STUDENTS.map((student, index) => ({
   assignmentId: seedId(ENTITY.studentInstructor, index + 1),
 }));
 
+/**
+ * The mock keeps no test attempts: these students count as having passed the practical test, so
+ * they may review the school. Stella and Sam already have a review; Sofia has not reviewed yet.
+ */
+export const PASSED_PRACTICAL_STUDENT_IDS: ReadonlySet<string> = new Set(
+  STUDENT_FIXTURES.slice(0, 3).map((student) => student.id),
+);
+
 export const GUARDIAN_LINK_FIXTURES = [
   {
     id: seedId(ENTITY.guardianLink, 1),

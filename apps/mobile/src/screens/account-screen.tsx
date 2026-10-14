@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -5,15 +6,19 @@ import { SchoolChooser } from '../components/school-chooser';
 import { useSchoolSwitch } from '../components/use-school-switch';
 import { useSignOut } from '../components/use-sign-out';
 import { useUnsyncedWarning } from '../lib/diary/use-diary';
-import { selectableMemberships } from '../lib/route-group';
-import { useAuthState, useMe } from '../lib/session';
-import { Banner, Button, Card, Screen, spacing, Text } from '../ui';
+import { REVIEW_HREF } from '../lib/push-target';
+import { routeGroupForRoles, selectableMemberships } from '../lib/route-group';
+import { useActiveMembership, useAuthState, useMe } from '../lib/session';
+import { Banner, Button, Card, ListItem, Screen, spacing, Text } from '../ui';
 
 type LeaveAction = { kind: 'signOut' } | { kind: 'switch'; membershipId: string };
 
 export function AccountScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const state = useAuthState();
+  // Only the student app has the review route; an instructor who is also a student uses that app.
+  const isStudent = routeGroupForRoles(useActiveMembership()?.roles ?? []) === 'student';
   const me = useMe();
   const school = useSchoolSwitch();
   const signOut = useSignOut();
@@ -37,6 +42,13 @@ export function AccountScreen() {
           {user.phone ? <Text tone="muted">{user.phone}</Text> : null}
           {user.email ? <Text tone="muted">{user.email}</Text> : null}
         </Card>
+      ) : null}
+      {isStudent ? (
+        <ListItem
+          title={t('review.title')}
+          subtitle={t('review.accountHint')}
+          onPress={() => router.push(REVIEW_HREF)}
+        />
       ) : null}
       <Text variant="heading">{t('account.schools')}</Text>
       {school.error ? <Banner tone="danger" message={school.error} /> : null}

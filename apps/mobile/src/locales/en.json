@@ -460,5 +460,24 @@
       "licenceClass": "Class {{licenceClass}}",
       "primary": "Primary instructor"
     }
+  },
+  "review": {
+    "title": "Rate your school",
+    "subtitle": "How did your driving school do? Your review helps other learners choose.",
+    "accountHint": "Tell other learners how your lessons went",
+    "ratingLabel": "Your rating",
+    "starLabel_one": "{{count}} star",
+    "starLabel_other": "{{count}} stars",
+    "textLabel": "Your review (optional)",
+    "textPlaceholder": "What did you like? What could be better?",
+    "remaining_one": "{{count}} character left",
+    "remaining_other": "{{count}} characters left",
+    "textTooLong": "Keep your review to 600 characters.",
+    "submit": "Send review",
+    "thanks": "Thank you! Your school will publish your review after a quick check.",
+    "externalReview": "Also review the school online",
+    "notYet": "You can rate your school after you pass your practical driving test.",
+    "alreadySent": "You have already sent a review. Thank you!",
+    "back": "Back"
   }
 }

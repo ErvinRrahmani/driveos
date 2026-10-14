@@ -64,6 +64,12 @@ const QUERY: Record<string, string> = {
   'reports.utilisation': '?from=2026-09-01&to=2026-09-30',
 };
 
+/** Routes only a particular caller may use; everything else runs as the owner. */
+const CALLER: Record<string, string> = {
+  // A student who passed the practical test and has not reviewed yet.
+  'reviews.submit': '+4915550000008',
+};
+
 async function login(contact = '+4915550000002') {
   const response = await fetch(`${BASE}/v1/auth/verify`, {
     method: 'POST',
@@ -164,7 +170,7 @@ describe('MSW mocks', () => {
   it.each(MOCK_ROUTES.map((route) => [route.operationId, route] as const))(
     '%s returns the documented status and body',
     async (_operationId, route) => {
-      const { session } = await login();
+      const { session } = await login(CALLER[route.operationId]);
       const { path, body } = await requestFor(route, session.accessToken);
       const result = await call(route.method.toUpperCase(), path, {
         body,
@@ -629,6 +635,35 @@ describe('MSW mocks: leads, public page and reviews', () => {
     expect(api.store.leads.size).toBe(leadsBefore + 1);
     const unknown = await call('POST', '/v1/public/schools/nope/leads', { body: request });
     expect(unknown.status).toBe(StatusCodes.NOT_FOUND);
+  });
+
+  it('takes one review per student who passed the practical test', async () => {
+    const submit = async (contact: string, body: unknown = { rating: 4, text: '  Calm.  ' }) => {
+      const token = (await login(contact)).session.accessToken;
+      const result = await call('POST', '/v1/reviews', { token, body });
+      return { status: result.status, json: result.json };
+    };
+    const sofia = '+4915550000008';
+    const first = await submit(sofia);
+    expect(first.status).toBe(StatusCodes.CREATED);
+    const { id } = dto.commandResultSchema.parse(first.json);
+    expect(api.store.reviews.get(id)).toMatchObject({
+      schoolId: SAMPLE_IDS.school,
+      value: { displayName: 'Sofia S.', rating: 4, text: 'Calm.', status: 'pending' },
+    });
+    const code = (result: { json: unknown }) =>
+      dto.errorResponseSchema.parse(result.json).error.code;
+    const again = await submit(sofia, { rating: 5 });
+    expect(again.status).toBe(StatusCodes.CONFLICT);
+    expect(code(again)).toBe('review_exists');
+    const stella = await submit('+4915550000006');
+    expect(stella.status).toBe(StatusCodes.CONFLICT);
+    const notPassed = await submit('+4915550000009');
+    expect(notPassed.status).toBe(StatusCodes.FORBIDDEN);
+    expect(code(notPassed)).toBe('review_not_available');
+    const owner = await submit('+4915550000002');
+    expect(owner.status).toBe(StatusCodes.NOT_FOUND);
+    expect(code(owner)).toBe('not_found');
   });
 
   it('lists and moderates reviews', async () => {

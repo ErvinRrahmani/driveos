@@ -5,6 +5,7 @@ import {
   type ModerateReviewRequest,
   type PublicProfile,
   type PublicSchoolPage,
+  type SubmitReviewRequest,
   type UpdatePublicProfileRequest,
 } from '../dto/index.js';
 import { DTO_SAMPLES } from '../dto/samples/index.js';
@@ -18,7 +19,9 @@ import {
   notFound,
   page,
   requireSchool,
+  requireSession,
 } from './context.js';
+import { PASSED_PRACTICAL_STUDENT_IDS } from './fixtures/students.js';
 import { addLead } from './leads.js';
 import type { MockStore } from './store.js';
 
@@ -159,6 +162,13 @@ function publicPageOf(store: MockStore, schoolId: string, profile: PublicProfile
   return result;
 }
 
+/** First name plus the last-name initial, as the API shows reviewers ("Stella S."). */
+function reviewerName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  const last = parts.length > 1 ? parts.at(-1) : undefined;
+  return last ? `${parts[0] ?? ''} ${last.charAt(0).toUpperCase()}.` : (parts[0] ?? '');
+}
+
 export const publicPageResolvers: Record<string, MockResolver> = {
   'publicSchools.get': (context) => {
     const { schoolId, profile } = publicSchool(context);
@@ -205,6 +215,45 @@ export const publicPageResolvers: Record<string, MockResolver> = {
     };
     context.store.publicProfiles.set(schoolId, next);
     return { body: commandResult(schoolId, next.version) };
+  },
+
+  /** Same order as the API: own student record (404), passed practical (403), one review (409). */
+  'reviews.submit': (context) => {
+    const { schoolId } = requireSchool(context);
+    const { userId } = requireSession(context);
+    const student =
+      [...context.store.students.values()].find(
+        (record) => record.schoolId === schoolId && record.value.userId === userId,
+      )?.value ?? notFound();
+    if (!PASSED_PRACTICAL_STUDENT_IDS.has(student.id)) {
+      fail(
+        StatusCodes.FORBIDDEN,
+        'review_not_available',
+        'Reviews open after you pass the practical driving test.',
+      );
+    }
+    const reviewed = [...context.store.reviews.values()].some(
+      (record) => record.schoolId === schoolId && record.value.studentId === student.id,
+    );
+    if (reviewed)
+      fail(StatusCodes.CONFLICT, 'review_exists', 'You have already reviewed this school.');
+    const { rating, text } = body<SubmitReviewRequest>(context);
+    const id = context.store.nextId();
+    context.store.reviews.set(id, {
+      schoolId,
+      version: 1,
+      value: {
+        id,
+        studentId: student.id,
+        displayName: reviewerName(student.fullName),
+        rating,
+        text: text || null,
+        status: 'pending',
+        submittedAt: context.store.isoNow(),
+        moderatedAt: null,
+      },
+    });
+    return { body: commandResult(id, 1) };
   },
 
   'reviews.list': (context) => {

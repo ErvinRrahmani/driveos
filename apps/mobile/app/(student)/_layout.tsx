@@ -1,4 +1,6 @@
 import { RoleTabs, type TabSpec } from '../../src/components/role-tabs';
+import { studentPushTarget } from '../../src/lib/push-target';
+import { usePushResponse } from '../../src/lib/use-push-response';
 
 const STUDENT_TABS: TabSpec[] = [
   { name: 'student/(home)', title: 'tabs.home', icon: 'home-outline' },
@@ -7,8 +9,19 @@ const STUDENT_TABS: TabSpec[] = [
   { name: 'student/shop', title: 'tabs.shop', icon: 'cart-outline' },
   { name: 'student/chat', title: 'tabs.chat', icon: 'chatbubbles-outline' },
   { name: 'student/account', title: 'tabs.account', icon: 'person-circle-outline' },
+  { name: 'student/review', title: 'review.title', icon: 'star-outline', hidden: true },
 ];
 
+function PushResponses() {
+  usePushResponse(studentPushTarget);
+  return null;
+}
+
 export default function StudentLayout() {
-  return <RoleTabs group="student" tabs={STUDENT_TABS} />;
+  return (
+    <>
+      <PushResponses />
+      <RoleTabs group="student" tabs={STUDENT_TABS} />
+    </>
+  );
 }
