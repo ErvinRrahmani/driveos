@@ -9,6 +9,7 @@ import {
   FileText,
   GraduationCap,
   Hourglass,
+  Inbox,
   LayoutDashboard,
   type LucideIcon,
   MessagesSquare,
@@ -25,6 +26,7 @@ export type NavTarget =
   | '/'
   | '/calendar'
   | '/students'
+  | '/leads'
   | '/instructors'
   | '/waiting-list'
   | '/slot-offers'
@@ -45,6 +47,7 @@ export type NavLabelKey =
   | 'nav.dashboard'
   | 'nav.calendar'
   | 'nav.students'
+  | 'nav.leads'
   | 'nav.availability'
   | 'nav.waitingList'
   | 'nav.slotOffers'
@@ -66,12 +69,23 @@ export interface NavItem {
   labelKey: NavLabelKey;
   icon: LucideIcon;
   anyOf: readonly Permission[];
+  /** A plan feature the item needs, for example `enrolment_page`. */
+  feature?: string;
 }
+
+export const ENROLMENT_PAGE_FEATURE = 'enrolment_page';
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard, anyOf: [] },
   { to: '/calendar', labelKey: 'nav.calendar', icon: CalendarDays, anyOf: ['calendar.read'] },
   { to: '/students', labelKey: 'nav.students', icon: GraduationCap, anyOf: ['students.read'] },
+  {
+    to: '/leads',
+    labelKey: 'nav.leads',
+    icon: Inbox,
+    anyOf: ['leads.read'],
+    feature: ENROLMENT_PAGE_FEATURE,
+  },
   {
     to: '/instructors',
     labelKey: 'nav.availability',
@@ -119,6 +133,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/audit-log', labelKey: 'nav.auditLog', icon: ScrollText, anyOf: ['audit_log.read'] },
 ];
 
-export function visibleNavItems(permissions: ReadonlySet<Permission>): NavItem[] {
-  return NAV_ITEMS.filter((item) => hasPermission(permissions, item.anyOf));
+export function visibleNavItems(
+  permissions: ReadonlySet<Permission>,
+  features: ReadonlySet<string>,
+): NavItem[] {
+  return NAV_ITEMS.filter(
+    (item) =>
+      hasPermission(permissions, item.anyOf) &&
+      (item.feature === undefined || features.has(item.feature)),
+  );
 }

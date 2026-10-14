@@ -51,6 +51,8 @@ const ID_BY_PREFIX: [string, string][] = [
   ['/v1/guardians/', SAMPLE_IDS.guardianLink],
   ['/v1/instructors/', SAMPLE_IDS.instructorMembership],
   ['/v1/waiting-list/', SAMPLE_IDS.waitingList],
+  ['/v1/leads/', SAMPLE_IDS.lead],
+  ['/v1/reviews/', SAMPLE_IDS.review],
 ];
 
 const QUERY: Record<string, string> = {
@@ -482,5 +484,108 @@ describe('MSW mocks', () => {
     });
     const implicit = await call('GET', '/v1/me');
     expect(implicit.status).toBe(StatusCodes.OK);
+  });
+});
+
+describe('MSW mocks: leads, public page and reviews', () => {
+  const ines = 'ines.ferreira@example.com';
+
+  it('lists leads by status and search text', async () => {
+    const token = (await login()).session.accessToken;
+    const names = async (query: string) =>
+      dto.leadListResponseSchema
+        .parse((await call('GET', `/v1/leads${query}`, { token })).json)
+        .items.map((lead) => lead.fullName);
+    expect(await names('')).toEqual(['Lena Lead', 'Sam Schulz']);
+    expect(await names('?status=converted')).toEqual(['Sam Schulz']);
+    expect(await names('?q=lena.lead@')).toEqual(['Lena Lead']);
+    const ownSchool = (await login(ines)).session.accessToken;
+    const foreign = await call('GET', `/v1/leads/${SAMPLE_IDS.lead}`, { token: ownSchool });
+    expect(foreign.status).toBe(StatusCodes.NOT_FOUND);
+  });
+
+  it('converts a lead into a student with an invitation, once', async () => {
+    const token = (await login()).session.accessToken;
+    const body = { dateOfBirth: '2004-05-06', examLanguage: 'en' };
+    const converted = await call('POST', `/v1/leads/${SAMPLE_IDS.lead}/convert`, {
+      token,
+      idempotencyKey: 'convert-1',
+      body,
+    });
+    expect(converted.status).toBe(StatusCodes.CREATED);
+    const result = dto.convertLeadResponseSchema.parse(converted.json);
+    expect(result.invitationId).not.toBeNull();
+    expect(result.parentInvitationId).toBeNull();
+    const student = await call('GET', `/v1/students/${result.studentId}`, { token });
+    expect(dto.studentResponseSchema.parse(student.json)).toMatchObject({
+      fullName: 'Lena Lead',
+      phone: '+4915550000020',
+    });
+    const again = await call('POST', `/v1/leads/${SAMPLE_IDS.lead}/convert`, {
+      token,
+      idempotencyKey: 'convert-2',
+      body,
+    });
+    expect(again.status).toBe(StatusCodes.CONFLICT);
+    expect(dto.errorResponseSchema.parse(again.json).error.code).toBe('lead_already_converted');
+    const patch = await call('PATCH', `/v1/leads/${SAMPLE_IDS.lead}`, {
+      token,
+      body: { status: 'contacted' },
+    });
+    expect(patch.status).toBe(StatusCodes.CONFLICT);
+  });
+
+  it('refuses a manual lead without the plan feature', async () => {
+    const token = (await login(ines)).session.accessToken;
+    const created = await call('POST', '/v1/leads', {
+      token,
+      body: DTO_SAMPLES.training.createLeadRequest,
+    });
+    expect(created.status).toBe(StatusCodes.FORBIDDEN);
+    expect(dto.errorResponseSchema.parse(created.json).error.code).toBe('feature_not_in_plan');
+  });
+
+  it('answers 404 until the profile is saved and keeps slugs unique', async () => {
+    const token = (await login(ines)).session.accessToken;
+    expect((await call('GET', '/v1/school/public-profile', { token })).status).toBe(
+      StatusCodes.NOT_FOUND,
+    );
+    const taken = await call('PUT', '/v1/school/public-profile', {
+      token,
+      body: { slug: 'fahrschule-spree' },
+    });
+    expect(dto.errorResponseSchema.parse(taken.json).error.code).toBe('slug_taken');
+    const reserved = await call('PUT', '/v1/school/public-profile', {
+      token,
+      body: { slug: 'admin' },
+    });
+    expect(reserved.status).toBe(StatusCodes.BAD_REQUEST);
+    const publish = await call('PUT', '/v1/school/public-profile', {
+      token,
+      body: { slug: 'escola-tejo', published: true },
+    });
+    expect(dto.errorResponseSchema.parse(publish.json).error.code).toBe('feature_not_in_plan');
+    const saved = await call('PUT', '/v1/school/public-profile', {
+      token,
+      body: { slug: 'escola-tejo' },
+    });
+    expect(saved.status).toBe(StatusCodes.OK);
+    const profile = await call('GET', '/v1/school/public-profile', { token });
+    expect(dto.publicProfileSchema.parse(profile.json)).toMatchObject({
+      slug: 'escola-tejo',
+      published: false,
+      showPrices: true,
+      version: 1,
+    });
+  });
+
+  it('lists and moderates reviews', async () => {
+    const token = (await login()).session.accessToken;
+    const pending = await call('GET', '/v1/reviews?status=pending', { token });
+    const [review] = dto.reviewListResponseSchema.parse(pending.json).items;
+    expect(review).toMatchObject({ displayName: 'Sam S.', status: 'pending' });
+    await call('PATCH', `/v1/reviews/${review?.id ?? ''}`, { token, body: { status: 'hidden' } });
+    const hidden = await call('GET', '/v1/reviews?status=hidden', { token });
+    expect(dto.reviewListResponseSchema.parse(hidden.json).items).toHaveLength(1);
   });
 });

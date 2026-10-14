@@ -29,6 +29,7 @@ function sessionFrom(me: MeResponse | undefined): SessionContextValue | null {
     me,
     schoolName: membership?.schoolName ?? '',
     permissions: permissionsForRoles(active.roles),
+    features: new Set(active.features),
   };
 }
 
@@ -61,7 +62,7 @@ export function AppShell() {
     return <StaffOnly me={me.data} />;
   }
 
-  const nav = visibleNavItems(session.permissions);
+  const nav = visibleNavItems(session.permissions, session.features);
   const activeMembershipId = session.me.active.membershipId;
 
   return (

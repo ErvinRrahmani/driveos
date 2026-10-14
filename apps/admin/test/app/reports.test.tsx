@@ -260,6 +260,27 @@ describe('reports', () => {
     expect(await screen.findByRole('img', { name: 'Recorded revenue by month' })).toBeTruthy();
   });
 
+  it('shows the leads funnel for the chosen month and lead columns in the history', async () => {
+    renderApp({ path: '/reports?tab=growth&month=2026-09', as: 'owner' });
+    const funnel = await screen.findByRole('region', { name: 'Leads → enrolments → revenue' });
+    expect(within(funnel).getByText('From your public page in September 2026')).toBeTruthy();
+    const metric = (label: string) =>
+      within(funnel).getByText(label).closest('[data-slot="card"]') as HTMLElement;
+    expect(within(metric('Leads')).getByText('14')).toBeTruthy();
+    expect(within(metric('Enrolments from leads')).getByText('5')).toBeTruthy();
+    expect(
+      within(metric('Enrolments from leads')).getByText('35.7% of leads enrolled'),
+    ).toBeTruthy();
+    expect(within(metric('Revenue from leads')).getByText('€2,100.00')).toBeTruthy();
+    expect(
+      within(funnel).getByText('Two or three extra enrolments a month cover the Pro plan.'),
+    ).toBeTruthy();
+    const table = await screen.findByRole('table', { name: 'Growth history' });
+    expect(within(table).getByRole('columnheader', { name: 'Revenue from leads' })).toBeTruthy();
+    const september = await within(table).findByRole('row', { name: /September 2026/ });
+    expect(await within(september).findByText('€2,100.00')).toBeTruthy();
+  });
+
   it('is hidden from office staff', async () => {
     renderApp({ path: '/reports', as: 'office' });
     expect(await screen.findByText('You do not have access to this page.')).toBeTruthy();

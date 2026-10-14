@@ -6,16 +6,19 @@ import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
 import { useInvalidate } from '@/hooks/use-invalidate';
 import { useServices } from '@/hooks/use-services';
-import { requiredDate, requiredText, optionalDate, optionalText } from '@/lib/form-schemas';
+import { requiredText } from '@/lib/form-schemas';
+import {
+  STUDENT_DETAILS_DEFAULTS,
+  STUDENT_DETAILS_FIELDS,
+  StudentDetailsFields,
+  studentDetailsBody,
+  studentDetailsShape,
+} from './student-fields';
 
 const createStudentSchema = z.object({
   fullName: requiredText(200),
-  dateOfBirth: requiredDate(),
   licenceClass: requiredText(10),
-  examLanguage: requiredText(35),
-  testDate: optionalDate(),
-  area: optionalText(100),
-  pickupAddress: optionalText(500),
+  ...studentDetailsShape,
 });
 type CreateStudentValues = z.input<typeof createStudentSchema>;
 
@@ -32,26 +35,17 @@ export function CreateStudentForm({
   const create = api.$api.useMutation('post', '/v1/students');
   const defaultValues: CreateStudentValues = {
     fullName: '',
-    dateOfBirth: '',
     licenceClass: 'B',
-    examLanguage: 'en',
-    testDate: '',
-    area: '',
-    pickupAddress: '',
+    ...STUDENT_DETAILS_DEFAULTS,
   };
   const form = useAppForm({
     defaultValues,
     validators: { onChange: createStudentSchema, onSubmit: createStudentSchema },
     onSubmit: async ({ value }) => {
-      const { testDate, area, pickupAddress, ...required } = createStudentSchema.parse(value);
+      const { fullName, licenceClass, ...details } = createStudentSchema.parse(value);
       try {
         const result = await create.mutateAsync({
-          body: {
-            ...required,
-            ...(testDate && { testDate }),
-            ...(area && { area }),
-            ...(pickupAddress && { pickupAddress }),
-          },
+          body: { fullName, licenceClass, ...studentDetailsBody(details) },
         });
         await invalidate('/v1/students');
         toast.success(t('students.created'));
@@ -73,28 +67,10 @@ export function CreateStudentForm({
       <form.AppField name="fullName">
         {(field) => <field.TextField label={t('students.fullName')} autoComplete="off" />}
       </form.AppField>
-      <div className="grid grid-cols-2 gap-4">
-        <form.AppField name="dateOfBirth">
-          {(field) => <field.DateField label={t('students.dateOfBirth')} />}
-        </form.AppField>
-        <form.AppField name="testDate">
-          {(field) => <field.DateField label={t('students.testDate')} />}
-        </form.AppField>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <form.AppField name="licenceClass">
-          {(field) => <field.TextField label={t('students.licenceClass')} />}
-        </form.AppField>
-        <form.AppField name="examLanguage">
-          {(field) => <field.TextField label={t('students.examLanguage')} />}
-        </form.AppField>
-      </div>
-      <form.AppField name="area">
-        {(field) => <field.TextField label={t('students.area')} />}
+      <form.AppField name="licenceClass">
+        {(field) => <field.TextField label={t('students.licenceClass')} />}
       </form.AppField>
-      <form.AppField name="pickupAddress">
-        {(field) => <field.TextField label={t('students.pickupAddress')} />}
-      </form.AppField>
+      <StudentDetailsFields form={form} fields={STUDENT_DETAILS_FIELDS} />
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           {t('common.cancel')}

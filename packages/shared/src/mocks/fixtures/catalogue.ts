@@ -64,6 +64,7 @@ export const PRICE_ITEM_FIXTURES = SCHOOLS.flatMap(
       currency: 'EUR',
       taxRateBp,
       sortOrder: index + 1,
-      showOnPublicPage: false,
+      // The design's seed: the first two Berlin items (single lesson, package) are on the page.
+      showOnPublicPage: schoolIndex === 0 && index < 2,
     })),
 );

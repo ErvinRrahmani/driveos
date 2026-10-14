@@ -16,6 +16,8 @@ export const ENTITY = {
   openingHours: 0x0f,
   questionPack: 0x10,
   question: 0x11,
+  review: 0x120,
+  lead: 0x121,
 } as const;
 
 export function seedId(entity: number, n: number): string {

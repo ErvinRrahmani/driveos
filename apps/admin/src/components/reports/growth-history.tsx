@@ -8,6 +8,7 @@ import { formatMonth, formatNumber, formatPercentFromBasisPoints } from '@/lib/f
 import { formatMoney } from '@/lib/money';
 import { isGrowthReportMissing, lastMonths } from '@/lib/reports';
 import { BarChart } from './bar-chart';
+import { LeadFunnel } from './lead-funnel';
 
 const HISTORY_MONTHS = 12;
 
@@ -78,6 +79,15 @@ export function GrowthHistory({ month }: { month: string }) {
       metric('late', t('reports.growth.lateKept'), (report) =>
         formatNumber(report.lateCancellationsKept, 0),
       ),
+      metric('leads', t('reports.growth.leadsCaptured'), (report) =>
+        formatNumber(report.leadsCaptured, 0),
+      ),
+      metric('leadsConverted', t('reports.growth.leadsConverted'), (report) =>
+        formatNumber(report.leadsConverted, 0),
+      ),
+      metric('leadRevenue', t('reports.growth.leadRevenue'), (report) =>
+        formatMoney(report.leadRevenueMinor, report.currency),
+      ),
     ]);
   }, [t]);
 
@@ -86,10 +96,12 @@ export function GrowthHistory({ month }: { month: string }) {
     value: row.report?.revenueRecordedMinor ?? 0,
   }));
   const currency = rows.find((row) => row.report)?.report?.currency ?? 'EUR';
+  const selected = rows[0]?.report;
 
   return (
     <div className="space-y-6">
       <p className="text-muted-foreground text-sm">{t('reports.growth.hint')}</p>
+      {selected && <LeadFunnel report={selected} />}
       <BarChart
         title={t('reports.growth.chart')}
         data={chartData}

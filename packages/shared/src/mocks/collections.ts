@@ -118,6 +118,44 @@ function publicStudent(student: MockStudent) {
   return response;
 }
 
+/** Stores a new student, as `POST /v1/students` and lead conversion do. */
+export function addStudent(
+  store: MockStore,
+  schoolId: string,
+  request: CreateStudentRequest & { phone?: string | null; email?: string | null },
+): string {
+  const {
+    primaryInstructorMembershipId: _primaryInstructorMembershipId,
+    enrolment: _enrolment,
+    ...fields
+  } = request;
+  const id = store.nextId();
+  store.students.set(id, {
+    schoolId,
+    version: 1,
+    value: {
+      id,
+      userId: null,
+      phone: null,
+      email: null,
+      testDate: null,
+      area: null,
+      pickupAddress: null,
+      pickupLat: null,
+      pickupLng: null,
+      ...fields,
+      isMinor: store.isMinor(fields.dateOfBirth, schoolId),
+      status: 'active',
+      enrolments: [],
+      instructors: [],
+      guardians: [],
+      updatedAt: store.isoNow(),
+      progressPct: 0,
+    },
+  });
+  return id;
+}
+
 const students: Record<string, MockResolver> = {
   'students.list': (context) => {
     const { schoolId } = requireSchool(context);
@@ -146,35 +184,7 @@ const students: Record<string, MockResolver> = {
   },
   'students.create': (context) => {
     const { schoolId } = requireSchool(context);
-    const {
-      primaryInstructorMembershipId: _primaryInstructorMembershipId,
-      enrolment: _enrolment,
-      ...request
-    } = body<CreateStudentRequest>(context);
-    const id = context.store.nextId();
-    context.store.students.set(id, {
-      schoolId,
-      version: 1,
-      value: {
-        id,
-        userId: null,
-        phone: null,
-        email: null,
-        testDate: null,
-        area: null,
-        pickupAddress: null,
-        pickupLat: null,
-        pickupLng: null,
-        ...request,
-        isMinor: context.store.isMinor(request.dateOfBirth, schoolId),
-        status: 'active',
-        enrolments: [],
-        instructors: [],
-        guardians: [],
-        updatedAt: context.store.isoNow(),
-        progressPct: 0,
-      },
-    });
+    const id = addStudent(context.store, schoolId, body<CreateStudentRequest>(context));
     return { body: commandResult(id, 1) };
   },
   'students.update': (context) => {

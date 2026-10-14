@@ -18,20 +18,12 @@ import {
   requireSchool,
   requireSession,
 } from './context.js';
-import { BERLIN } from './fixtures/schools.js';
 import type { MockSession, MockStore, MockUser } from './store.js';
 import { StatusCodes } from 'http-status-codes';
 
 export const MOCK_LOGIN_CODE = '000000';
 const ACCESS_TOKEN_SECONDS = 900;
 const INVITATION_DAYS = 7;
-
-/** The mock has no subscriptions; the Berlin demo school is on the Standard plan. */
-function planFeaturesOf(store: MockStore, schoolId: string): string[] {
-  if (schoolId !== BERLIN) return [];
-  const standard = [...store.plans.values()].find((plan) => plan.value.code === 'standard');
-  return standard ? [...standard.value.features] : [];
-}
 
 function memberships(store: MockStore, userId: string): MembershipSummary[] {
   return [...store.memberships.values()]
@@ -64,6 +56,35 @@ function findUser(store: MockStore, contact: string): MockUser | undefined {
 
 function sessionByRefresh(store: MockStore, refreshToken: string): MockSession | undefined {
   return [...store.sessions.values()].find((session) => session.refreshToken === refreshToken);
+}
+
+/** Stores a pending invitation, as `POST /v1/invitations` and lead conversion do. */
+export function addInvitation(
+  store: MockStore,
+  schoolId: string,
+  invitedBy: string,
+  request: CreateInvitationRequest,
+): { id: string; acceptToken: string } {
+  const now = store.now();
+  const token = store.nextToken('invite');
+  const id = store.nextId();
+  store.invitations.set(token, {
+    token,
+    schoolId,
+    acceptedAt: null,
+    invitation: {
+      id,
+      roles: request.roles,
+      phone: request.phone ?? null,
+      email: request.email ?? null,
+      studentId: request.studentId ?? null,
+      branchIds: request.branchIds ?? [],
+      invitedBy,
+      expiresAt: new Date(now.getTime() + INVITATION_DAYS * 86_400_000).toISOString(),
+      createdAt: now.toISOString(),
+    },
+  });
+  return { id, acceptToken: token };
 }
 
 export const identityResolvers: Record<string, MockResolver> = {
@@ -121,7 +142,7 @@ export const identityResolvers: Record<string, MockResolver> = {
                     student.schoolId === active.schoolId && student.value.userId === active.userId,
                 )?.value.id ?? null)
               : null,
-            features: planFeaturesOf(context.store, active.schoolId),
+            features: context.store.planFeatures(active.schoolId),
           }
         : null,
     };
@@ -146,27 +167,13 @@ export const identityResolvers: Record<string, MockResolver> = {
 
   createInvitation: (context) => {
     const { schoolId, membership } = requireSchool(context);
-    const request = body<CreateInvitationRequest>(context);
-    const now = context.store.now();
-    const token = context.store.nextToken('invite');
-    const id = context.store.nextId();
-    context.store.invitations.set(token, {
-      token,
+    const created = addInvitation(
+      context.store,
       schoolId,
-      acceptedAt: null,
-      invitation: {
-        id,
-        roles: request.roles,
-        phone: request.phone ?? null,
-        email: request.email ?? null,
-        studentId: request.studentId ?? null,
-        branchIds: request.branchIds ?? [],
-        invitedBy: membership.id,
-        expiresAt: new Date(now.getTime() + INVITATION_DAYS * 86_400_000).toISOString(),
-        createdAt: now.toISOString(),
-      },
-    });
-    return { body: { id, version: 1, acceptToken: token } };
+      membership.id,
+      body<CreateInvitationRequest>(context),
+    );
+    return { body: { ...created, version: 1 } };
   },
 
   listInvitations: (context) => {

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { visibleNavItems } from '../../src/lib/navigation';
 import { hasPermission, permissionsForRoles } from '../../src/lib/permissions';
 
-const navTargets = (roles: string[], grants: string[] = []) =>
-  visibleNavItems(permissionsForRoles(roles, grants)).map((item) => item.to);
+const navTargets = (roles: string[], grants: string[] = [], features = ['enrolment_page']) =>
+  visibleNavItems(permissionsForRoles(roles, grants), new Set(features)).map((item) => item.to);
 
 describe('permissionsForRoles', () => {
   it('gives the owner every school permission but not platform.manage', () => {
@@ -49,6 +49,7 @@ describe('visibleNavItems', () => {
       '/',
       '/calendar',
       '/students',
+      '/leads',
       '/instructors',
       '/waiting-list',
       '/slot-offers',
@@ -72,6 +73,7 @@ describe('visibleNavItems', () => {
       '/',
       '/calendar',
       '/students',
+      '/leads',
       '/instructors',
       '/waiting-list',
       '/slot-offers',
@@ -83,6 +85,11 @@ describe('visibleNavItems', () => {
       '/staff',
       '/lesson-types',
     ]);
+  });
+
+  it('hides the leads inbox when the plan lacks the enrolment page', () => {
+    expect(navTargets(['owner'], [], [])).not.toContain('/leads');
+    expect(navTargets(['instructor'])).not.toContain('/leads');
   });
 
   it('shows prices to office staff granted prices.manage', () => {

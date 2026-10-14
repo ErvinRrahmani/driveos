@@ -13,7 +13,9 @@ import {
 } from './context.js';
 import { MOCK_ROUTES } from './generated/routes.js';
 import { identityResolvers } from './identity.js';
+import { leadResolvers } from './leads.js';
 import { lessonResolvers } from './lessons.js';
+import { publicPageResolvers } from './public-page.js';
 import { reportResolvers } from './reports.js';
 import type { MockRoute } from './routes.js';
 import { schedulingOfferResolvers } from './scheduling-offers.js';
@@ -28,6 +30,8 @@ const RESOLVERS: Record<string, MockResolver> = {
   ...syncResolvers,
   ...schedulingOfferResolvers,
   ...reportResolvers,
+  ...leadResolvers,
+  ...publicPageResolvers,
 };
 
 const PDF = new TextEncoder().encode(

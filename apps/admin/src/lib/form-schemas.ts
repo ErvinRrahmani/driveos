@@ -33,3 +33,26 @@ export const requiredId = () =>
     .string()
     .nullable()
     .refine((value) => !!value, { message: 'validation.required' });
+
+const E164 = /^\+[1-9]\d{6,14}$/;
+
+/** An E.164 phone number (`+4915550000000`) or an empty field. */
+export const optionalPhone = () =>
+  z
+    .string()
+    .trim()
+    .refine((value) => value === '' || E164.test(value), 'validation.phone');
+
+/** An `https://` address of at most `max` characters, or an empty field. */
+export const optionalHttpsUrl = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, 'validation.max')
+    .refine(
+      (value) => value === '' || (/^https:\/\//.test(value) && URL.canParse(value)),
+      'validation.httpsUrl',
+    );
+
+/** Turns an empty optional text field into `null` for the API. */
+export const emptyToNull = (value: string): string | null => value.trim() || null;

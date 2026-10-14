@@ -1,6 +1,7 @@
 import type {
   Branch,
   Invitation,
+  Lead,
   LedgerEntry,
   LessonResponse,
   LessonType,
@@ -8,6 +9,8 @@ import type {
   MembershipStatus,
   Plan,
   PriceItem,
+  PublicProfile,
+  Review,
   SchoolResponse,
   SchoolSettings,
   SlotOffer,
@@ -19,6 +22,7 @@ import type {
 } from '../dto/index.js';
 import { DTO_SAMPLES } from '../dto/samples/index.js';
 import { LESSON_TYPE_FIXTURES, PRICE_ITEM_FIXTURES } from './fixtures/catalogue.js';
+import { LEAD_FIXTURES, PUBLIC_PROFILE_FIXTURES, REVIEW_FIXTURES } from './fixtures/leads.js';
 import {
   BERLIN,
   BRANCH_FIXTURES,
@@ -128,6 +132,10 @@ export class MockStore {
   readonly lessons = new Map<string, Scoped<LessonResponse>>();
   readonly waitingList = new Map<string, Scoped<WaitingListEntry>>();
   readonly slotOffers = new Map<string, Scoped<SlotOffer>>();
+  readonly leads = new Map<string, Scoped<Lead>>();
+  readonly reviews = new Map<string, Scoped<Review>>();
+  /** The public page settings, by school id; a school without an entry has never saved them. */
+  readonly publicProfiles = new Map<string, PublicProfile>();
   readonly invitations = new Map<string, MockInvitation>();
   readonly sessions = new Map<string, MockSession>();
   readonly idempotency = new Map<string, MockIdempotentReply>();
@@ -223,6 +231,13 @@ export class MockStore {
     return membership ? this.userName(membership.userId) : '';
   }
 
+  /** The mock has no subscriptions; the Berlin demo school is on the Standard plan. */
+  planFeatures(schoolId: string): string[] {
+    if (schoolId !== BERLIN) return [];
+    const standard = [...this.plans.values()].find((plan) => plan.value.code === 'standard');
+    return standard ? [...standard.value.features] : [];
+  }
+
   isMinor(dateOfBirth: string, schoolId: string): boolean {
     const ageOfMajority = this.settings.get(schoolId)?.ageOfMajority ?? 18;
     const now = this.now();
@@ -250,6 +265,9 @@ export class MockStore {
       this.lessons,
       this.waitingList,
       this.slotOffers,
+      this.leads,
+      this.reviews,
+      this.publicProfiles,
       this.invitations,
       this.sessions,
       this.idempotency,
@@ -330,6 +348,15 @@ export class MockStore {
       version: 1,
       value: structuredClone(slotOffer),
     });
+    for (const { schoolId, lead } of LEAD_FIXTURES) {
+      this.leads.set(lead.id, { schoolId, version: lead.version, value: { ...lead } });
+    }
+    for (const { schoolId, review } of REVIEW_FIXTURES) {
+      this.reviews.set(review.id, { schoolId, version: 1, value: { ...review } });
+    }
+    for (const { schoolId, profile } of PUBLIC_PROFILE_FIXTURES) {
+      this.publicProfiles.set(schoolId, { ...profile });
+    }
   }
 
   private loadStudents(): void {
