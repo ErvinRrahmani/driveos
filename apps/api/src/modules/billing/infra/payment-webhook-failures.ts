@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { count, gt } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { newId } from '../../../kernel/db/columns.js';
 import { ApiError } from '../../../kernel/http/api-error.js';
 import { TenantContext } from '../../../kernel/tenant/tenant-context.js';
@@ -40,13 +40,13 @@ export class PaymentWebhookFailures {
     }
   }
 
+  /** Failures of every school, counted through `billing_count_webhook_failures` in a school-less scope. */
   async countSince(since: Date): Promise<number> {
-    const [row] = await this.tenant.runAsSystem((tx) =>
-      tx
-        .select({ n: count() })
-        .from(paymentWebhookFailures)
-        .where(gt(paymentWebhookFailures.failedAt, since)),
+    const result = await this.tenant.runInTenant({ schoolId: null, userId: null }, () =>
+      this.tenant.tx.execute<{ n: string | number | null }>(
+        sql`select billing_count_webhook_failures(${since}::timestamptz) as n`,
+      ),
     );
-    return row?.n ?? 0;
+    return Number(result.rows[0]?.n ?? 0);
   }
 }

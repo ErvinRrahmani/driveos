@@ -81,7 +81,7 @@ With `VITE_USE_MOCKS=true` (admin) or `EXPO_PUBLIC_USE_MOCKS=true` (mobile) the 
 | `driveos` | yes | superuser | Compose superuser. Used only by `db:bootstrap` / `db:reset` through `DATABASE_ADMIN_URL`. Never by the app. |
 | `driveos_owner` | yes | owner | Owns the database and every table. Runs migrations (`DATABASE_OWNER_URL`). |
 | `app_rw` | yes | enforced | API requests and worker subscribers and per-school jobs (`DATABASE_URL`). Not a table owner; every tenant table has RLS enabled and forced. |
-| `app_system` | yes | `BYPASSRLS` | Worker only (`DATABASE_SYSTEM_URL`): outbox relay, delivery reconciler, event-delivery bookkeeping, dead letters, alert probes, enumerating schools for scheduled jobs, idempotency purge. Per CLAUDE.md only the outbox relay, cross-school schedulers and platform billing may use it; request handlers and support access never do. |
+| `app_system` | yes | `BYPASSRLS` | Worker only (`DATABASE_SYSTEM_URL`): outbox relay, delivery reconciler, event-delivery bookkeeping, dead letters, the dead-letter and outbox-lag alert probes, enumerating schools for scheduled jobs, idempotency purge. Per CLAUDE.md only the outbox relay, cross-school schedulers and platform billing may use it; request handlers and support access never do. |
 | `driveos_definer` | no | `BYPASSRLS` | Owns the `SECURITY DEFINER` functions. |
 
 The API process also opens an `app_system` pool (both pools are created in [`kernel/db/clients.ts`](../apps/api/src/kernel/db/clients.ts)), because the same `TenantContext` serves both processes. Code reaches it only through `TenantContext.runAsSystem`, which refuses to run inside a tenant scope.
@@ -116,6 +116,11 @@ All are owned by `driveos_definer`, `SET search_path = public, pg_temp`, `REVOKE
 | `auth_release_push_token(push_token text)` | `0007_refresh_token_successor.sql` | removes a push token from another user's device row |
 | `platform_list_statements(...)` | `0009_platform_statement_functions.sql` | platform admin statement list across schools |
 | `platform_statement_school(statement_id uuid)` | `0009` | school of a statement, before `enterSchool` |
+| `billing_count_webhook_failures(since timestamptz)` | `0026_named_definer_functions.sql` | webhook-failure count for the alert probe; non-zero only in a school-less scope |
+| `auth_devices_for_school_members(user_ids uuid[])` | `0026` | push devices of the current school's members, for the notification dispatcher (`ListDevicesForUsersQuery`) |
+| `auth_prune_device(device_id uuid, user_id uuid, seen_before timestamptz)` | `0026` | deletes a member's rejected push device from the worker (`DeviceTokenInvalidated`); no-op when `app.user_id` is set |
+
+Migration `0026` also drops the `devices_school_members` (0018) and `devices_school_members_prune` (0025) policies, so `devices` is back to the single `devices_own` policy of SPEC §6.1. The webhook-failure count no longer reads through `app_system`.
 
 `billing_invoice_immutable()` and `billing_invoice_line_immutable()` in `0011` are triggers that block edits to issued invoices; they are not `SECURITY DEFINER`.
 

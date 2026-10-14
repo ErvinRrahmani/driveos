@@ -83,7 +83,8 @@ They join the caller's tenant transaction (SPEC §3.4). Inject them by token or 
     (`ALERT_OUTBOX_LAG_SECONDS`, default 60).
   - `webhook_failures` (billing): rejected or failed payment webhooks recorded in
     `payment_webhook_failures` within `ALERT_WEBHOOK_FAILURES_WINDOW_SECONDS` (default 900),
-    alert above `ALERT_WEBHOOK_FAILURES_THRESHOLD` (default 0).
+    alert above `ALERT_WEBHOOK_FAILURES_THRESHOLD` (default 0); counted as `app_rw` in a
+    school-less scope through `billing_count_webhook_failures` (migration 0026).
   - `sync_backlog` (scheduling): age in seconds of the oldest outbox event (last 24 h) of a type
     that `scheduling.change-feed` consumes and that has neither an `event_deliveries` nor a
     `dead_letters` row for it (`ALERT_SYNC_BACKLOG_SECONDS`, default 60). This measures what
@@ -146,15 +147,16 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   (`GET /v1/invitations?studentId=&role=`, open invitations, newest first, cursor = invitation id;
   `role` matches any role of the invitation), `ListDevicesForUsersQuery(userIds) → { id,
   userId, pushToken, platform, locale }[]` (registered in the API and the worker; a school scope reads the
-  devices of that school's members through the `devices_school_members` select policy).
+  devices of that school's members through the `auth_devices_for_school_members` SECURITY DEFINER
+  function, migration 0026).
 - Emits: `InvitationCreated`, `MembershipCreated`, `MembershipRolesChanged`,
   `MembershipPermissionsChanged`, `MembershipDisabled`.
 - Consumes: `MembershipPermissionsChanged` (permission cache), `GuardianConsentGiven` (activates the
   minor's membership), `DeviceTokenInvalidated` (worker subscriber `identity.device-token-pruning`:
   deletes the device row when `id` and `userId` match and `last_seen_at <= occurredAt`, so a device
-  that re-registered since is kept; idempotent by event id. RLS: policy
-  `devices_school_members_prune` (migration 0025) allows `DELETE` only in a worker scope without
-  `app.user_id`, on devices of members of the current school).
+  that re-registered since is kept; idempotent by event id. The delete goes through the
+  `auth_prune_device` SECURITY DEFINER function (migration 0026), which acts only in a worker scope
+  without `app.user_id` and only on devices of members of the current school).
 
 ### school
 

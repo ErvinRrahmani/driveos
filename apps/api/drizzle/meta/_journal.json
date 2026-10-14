@@ -183,6 +183,13 @@
       "when": 1791802309230,
       "tag": "0025_device_token_pruning",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791937259129,
+      "tag": "0026_named_definer_functions",
+      "breakpoints": true
     }
   ]
 }

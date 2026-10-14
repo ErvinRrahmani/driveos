@@ -36,6 +36,21 @@ const FUNCTIONS = [
       'TABLE(statement_id uuid, school_id uuid, school_name text, month date, total_minor bigint, currency text, status text, issued_at timestamp with time zone, paid_at timestamp with time zone, paid_method text, paid_reference text, marked_paid_by_user_id uuid)',
   },
   { name: 'platform_statement_school', args: 'statement_id uuid', result: 'uuid' },
+  {
+    name: 'billing_count_webhook_failures',
+    args: 'since timestamp with time zone',
+    result: 'bigint',
+  },
+  {
+    name: 'auth_devices_for_school_members',
+    args: 'user_ids uuid[]',
+    result: 'TABLE(device_id uuid, user_id uuid, push_token text, platform text, locale text)',
+  },
+  {
+    name: 'auth_prune_device',
+    args: 'device_id uuid, user_id uuid, seen_before timestamp with time zone',
+    result: 'void',
+  },
 ];
 
 const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle');
@@ -487,6 +502,208 @@ describe('SECURITY DEFINER functions', () => {
         (await asUser(pat, 'select platform_statement_school($1) as v', [id]))[0]?.v;
       expect(await school(issuedInA)).toBe(a.schoolId);
       expect(await school(randomUUID())).toBeNull();
+    });
+  });
+
+  describe('auth_devices_for_school_members', () => {
+    const listed = (schoolId: string | undefined, userIds: string[]) =>
+      inTransaction(app, schoolId ? { schoolId } : {}, async () => {
+        const { rows } = await app.query(
+          `select * from auth_devices_for_school_members($1::uuid[])`,
+          [userIds],
+        );
+        return rows;
+      });
+
+    async function device(userId: string, pushToken: string, lastSeenAt: Date) {
+      return insertRow(admin, 'devices', {
+        user_id: userId,
+        platform: 'ios',
+        push_token: pushToken,
+        locale: 'en',
+        last_seen_at: lastSeenAt,
+      });
+    }
+
+    // Fresh users: other cases in this file add devices to alice and dora.
+    const inBoth = randomUUID();
+    const disabledInA = randomUUID();
+    const nowhere = randomUUID();
+    let inBothOld: string;
+    let inBothNew: string;
+    let disabledDevice: string;
+    let nowhereDevice: string;
+
+    beforeAll(async () => {
+      await user(inBoth, { email: 'list-both@example.com' });
+      await user(disabledInA, { email: 'list-disabled@example.com' });
+      await user(nowhere, { email: 'list-nowhere@example.com' });
+      await membership(a, inBoth, 'active');
+      await membership(b, inBoth, 'pending_consent');
+      await membership(a, disabledInA, 'disabled');
+      inBothOld = await device(inBoth, 'list-both-old', new Date('2026-01-01T00:00:00Z'));
+      inBothNew = await device(inBoth, 'list-both-new', new Date('2026-02-01T00:00:00Z'));
+      disabledDevice = await device(disabledInA, 'list-disabled', new Date('2026-01-01T00:00:00Z'));
+      nowhereDevice = await device(nowhere, 'list-nowhere', new Date('2026-01-01T00:00:00Z'));
+    });
+
+    it("lists the requested users' devices when they are members of app.school_id, oldest first per user", async () => {
+      const rows = await listed(a.schoolId, [inBoth, disabledInA, nowhere]);
+      expect(rows.map((row) => Object.keys(row))).toEqual(
+        rows.map(() => ['device_id', 'user_id', 'push_token', 'platform', 'locale']),
+      );
+      expect(rows.map((row) => row.device_id).sort()).toEqual(
+        [inBothOld, inBothNew, disabledDevice].sort(),
+      );
+      expect(rows.filter((row) => row.user_id === inBoth)).toEqual([
+        {
+          device_id: inBothOld,
+          user_id: inBoth,
+          push_token: 'list-both-old',
+          platform: 'ios',
+          locale: 'en',
+        },
+        {
+          device_id: inBothNew,
+          user_id: inBoth,
+          push_token: 'list-both-new',
+          platform: 'ios',
+          locale: 'en',
+        },
+      ]);
+    });
+
+    it('returns only the devices of users that were asked for', async () => {
+      const rows = await listed(a.schoolId, [disabledInA]);
+      expect(rows.map((row) => row.device_id)).toEqual([disabledDevice]);
+    });
+
+    it('skips users without a membership in app.school_id', async () => {
+      const rows = await listed(b.schoolId, [inBoth, disabledInA, nowhere]);
+      expect(rows.map((row) => row.device_id)).toEqual([inBothOld, inBothNew]);
+      expect(rows.map((row) => row.device_id)).not.toContain(nowhereDevice);
+    });
+
+    it('returns nothing without app.school_id', async () => {
+      expect(await listed(undefined, [inBoth, disabledInA, nowhere])).toEqual([]);
+    });
+  });
+
+  describe('auth_prune_device', () => {
+    const seenAt = new Date('2026-03-01T12:00:00Z');
+
+    async function device(userId: string, pushToken: string) {
+      return insertRow(admin, 'devices', {
+        user_id: userId,
+        platform: 'android',
+        push_token: pushToken,
+        locale: 'en',
+        last_seen_at: seenAt,
+      });
+    }
+
+    const exists = async (id: string) =>
+      (await admin.query(`select 1 from devices where id = $1`, [id])).rowCount === 1;
+
+    async function prune(
+      tenant: { schoolId?: string; userId?: string },
+      deviceId: string,
+      userId: string,
+      seenBefore: Date,
+    ) {
+      await app.query('begin');
+      try {
+        if (tenant.schoolId) {
+          await app.query(`select set_config('app.school_id', $1, true)`, [tenant.schoolId]);
+        }
+        if (tenant.userId) {
+          await app.query(`select set_config('app.user_id', $1, true)`, [tenant.userId]);
+        }
+        const { rows } = await app.query(
+          `select auth_prune_device($1::uuid, $2::uuid, $3::timestamptz) as v`,
+          [deviceId, userId, seenBefore],
+        );
+        await app.query('commit');
+        return rows;
+      } catch (error) {
+        await app.query('rollback');
+        throw error;
+      }
+    }
+
+    it("deletes a member's device last seen at or before seen_before, returning nothing", async () => {
+      const id = await device(alice, 'prune-dead');
+
+      expect(await prune({ schoolId: a.schoolId }, id, alice, seenAt)).toEqual([{ v: null }]);
+      expect(await exists(id)).toBe(false);
+    });
+
+    it('keeps a device that re-registered after seen_before', async () => {
+      const id = await device(alice, 'prune-back');
+
+      await prune({ schoolId: a.schoolId }, id, alice, new Date(seenAt.getTime() - 1000));
+
+      expect(await exists(id)).toBe(true);
+    });
+
+    it('keeps the device when the user id does not match', async () => {
+      const id = await device(alice, 'prune-wrong-user');
+
+      await prune({ schoolId: a.schoolId }, id, dora, seenAt);
+
+      expect(await exists(id)).toBe(true);
+    });
+
+    it('keeps the device of a user who is not a member of app.school_id', async () => {
+      const id = await device(pat, 'prune-not-member');
+
+      await prune({ schoolId: a.schoolId }, id, pat, seenAt);
+
+      expect(await exists(id)).toBe(true);
+    });
+
+    it('does nothing in a request scope (app.user_id set) or without a school', async () => {
+      const id = await device(alice, 'prune-request');
+
+      await prune({ schoolId: a.schoolId, userId: alice }, id, alice, seenAt);
+      await prune({}, id, alice, seenAt);
+
+      expect(await exists(id)).toBe(true);
+    });
+  });
+
+  describe('billing_count_webhook_failures', () => {
+    const count = (tenant: { schoolId?: string; userId?: string }, since: Date) =>
+      inTransaction(app, tenant, async () => {
+        const { rows } = await app.query<{ n: string }>(
+          `select billing_count_webhook_failures($1::timestamptz) as n`,
+          [since],
+        );
+        return Number(rows[0]?.n);
+      });
+
+    beforeAll(async () => {
+      const failure = (schoolId: string | null, failedAt: Date) =>
+        insertRow(admin, 'payment_webhook_failures', {
+          school_id: schoolId,
+          provider: 'fake',
+          provider_ref: null,
+          reason: 'invalid_signature',
+          failed_at: failedAt,
+        });
+      await failure(null, new Date('2026-05-01T10:00:00Z'));
+      await failure(a.schoolId, new Date('2026-05-01T10:30:00Z'));
+      await failure(b.schoolId, new Date('2026-05-01T08:00:00Z'));
+    });
+
+    it('counts failures of every school after `since` from a school-less scope', async () => {
+      expect(await count({}, new Date('2026-05-01T09:00:00Z'))).toBe(2);
+      expect(await count({}, new Date('2026-05-01T07:00:00Z'))).toBe(3);
+      expect(await count({ userId: pat }, new Date('2026-05-01T10:15:00Z'))).toBe(1);
+    });
+
+    it('returns zero inside a school scope', async () => {
+      expect(await count({ schoolId: a.schoolId }, new Date('2026-05-01T07:00:00Z'))).toBe(0);
     });
   });
 });

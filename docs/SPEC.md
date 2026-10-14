@@ -315,8 +315,14 @@ dead_letters(id, subscriber, event_id, error, attempts, failed_at)
 | `auth_memberships_for_user(user_id uuid)` | `(membership_id, school_id, school_name, roles, status)` |
 | `auth_invitation_by_token_hash(hash text)` | `(invitation_id, school_id, roles, phone, email, student_id, expires_at, accepted_at)` |
 | `billing_school_for_payment(provider text, provider_ref text)` | `school_id` |
+| `auth_release_push_token(push_token text)` | nothing; removes the token from another user's device row |
+| `platform_list_statements(filter_status, filter_school_id, filter_month, after_id, max_rows)` | statements of every school, for a platform admin only |
+| `platform_statement_school(statement_id uuid)` | `school_id`, for a platform admin only |
+| `billing_count_webhook_failures(since timestamptz)` | count of `payment_webhook_failures` across schools, only in a school-less scope (worker alert probe) |
+| `auth_devices_for_school_members(user_ids uuid[])` | `(device_id, user_id, push_token, platform, locale)` of the given users that are members of `app.school_id` (notification dispatcher) |
+| `auth_prune_device(device_id uuid, user_id uuid, seen_before timestamptz)` | nothing; deletes a member's device not seen after `seen_before`, only in a school scope without `app.user_id` |
 
-Each function has a test proving it returns only the listed columns.
+Each function has a test proving it returns only the listed columns. Worker-scope access to tables outside the tenant predicate (`devices`, `payment_webhook_failures`) goes through these functions, never through extra RLS policies or `app_system`.
 
 ## 7. Key flows
 

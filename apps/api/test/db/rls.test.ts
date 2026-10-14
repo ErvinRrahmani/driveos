@@ -305,16 +305,15 @@ describe('row-level security', () => {
       });
     });
 
-    it('devices: a school scope without a user reads and prunes the devices of its members only', async () => {
+    it('devices: a school scope without a user sees and deletes nothing (named functions do that)', async () => {
       const deviceA = rowOf(rowsA, 'devices');
       const deviceB = rowOf(rowsB, 'devices');
       await inTransaction(app, { schoolId: schoolA }, async () => {
         const devices = await app.query(`select id from devices`);
-        expect(devices.rows).toEqual([{ id: deviceA.id }]);
+        expect(devices.rows).toEqual([]);
         const foreign = await attempt(app, `delete from devices where id = $1`, [deviceB.id]);
-        expect(foreign.rowCount).toBe(0);
-        const pruned = await attempt(app, `delete from devices where id = $1`, [deviceA.id]);
-        expect(pruned.rowCount).toBe(1);
+        const own = await attempt(app, `delete from devices where id = $1`, [deviceA.id]);
+        expect([foreign.rowCount, own.rowCount]).toEqual([0, 0]);
       });
       await inTransaction(app, { schoolId: schoolA, userId: randomUUID() }, async () => {
         const removed = await attempt(app, `delete from devices where id = $1`, [deviceA.id]);
