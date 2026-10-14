@@ -1,12 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { openBrowserAsync } from 'expo-web-browser';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { errorMessage } from '../../components/error-message';
 import {
-  externalReviewLink,
   REVIEW_RATINGS,
   reviewOutcome,
   reviewSubmission,
@@ -29,8 +27,6 @@ export function ReviewScreen() {
   const router = useRouter();
   const services = useServices();
   const ratingLabelId = useId();
-  const params = useLocalSearchParams<{ externalReviewUrl?: string }>();
-  const externalUrl = externalReviewLink(params.externalReviewUrl);
   const [rating, setRating] = useState<number | null>(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -72,14 +68,7 @@ export function ReviewScreen() {
           tone="success"
           message={outcome.kind === 'sent' ? t('review.thanks') : t('review.alreadySent')}
         />
-        {externalUrl ? (
-          <Button
-            title={t('review.externalReview')}
-            variant="secondary"
-            onPress={() => void openBrowserAsync(externalUrl)}
-          />
-        ) : null}
-        <Button title={t('review.back')} variant="ghost" onPress={goBack} />
+        <Button title={t('review.back')} variant="secondary" onPress={goBack} />
       </Screen>
     );
   }

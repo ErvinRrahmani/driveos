@@ -39,16 +39,6 @@ export function reviewOutcome(result: ApiFailure): ReviewOutcome {
   return 'error';
 }
 
-/** An external review link is only offered when it is a well-formed https URL. */
-export function externalReviewLink(value: unknown): string | null {
-  if (typeof value !== 'string' || value === '') return null;
-  try {
-    return new URL(value).protocol === 'https:' ? value : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function submitReview(
   services: AppServices,
   body: SubmitReviewRequest,

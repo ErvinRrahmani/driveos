@@ -16,22 +16,19 @@ describe('studentPushTarget', () => {
     ).toBe('/student/review');
   });
 
-  it('passes an https external review link on to the screen', () => {
-    const externalReviewUrl = 'https://g.page/r/fahrschule-spree/review?hl=en';
-    expect(
-      studentPushTarget({
-        template: 'review_request',
-        studentId: STUDENT,
-        url: 'driveos://student/review',
-        externalReviewUrl,
-      }),
-    ).toBe(`/student/review?externalReviewUrl=${encodeURIComponent(externalReviewUrl)}`);
-  });
-
-  it('drops an external review link that is missing or not https', () => {
-    for (const externalReviewUrl of [null, '', 'http://example.com/review', 'javascript:x']) {
+  it('never carries an external link into the screen', () => {
+    for (const externalReviewUrl of [
+      'https://g.page/r/fahrschule-spree/review',
+      'http://example.com/review',
+      null,
+    ]) {
       expect(
-        studentPushTarget({ template: 'review_request', studentId: STUDENT, externalReviewUrl }),
+        studentPushTarget({
+          template: 'review_request',
+          studentId: STUDENT,
+          url: 'driveos://student/review',
+          externalReviewUrl,
+        }),
       ).toBe('/student/review');
     }
   });

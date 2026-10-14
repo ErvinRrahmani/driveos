@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NETWORK_ERROR, type ApiFailure } from '../../src/lib/api-errors';
 import {
-  externalReviewLink,
   REVIEW_TEXT_MAX,
   reviewOutcome,
   reviewSubmission,
@@ -76,23 +75,5 @@ describe('reviewOutcome', () => {
     expect(reviewOutcome(failure('not_found'))).toBe('error');
     expect(reviewOutcome(failure('validation_error'))).toBe('error');
     expect(reviewOutcome(failure(NETWORK_ERROR))).toBe('error');
-  });
-});
-
-describe('externalReviewLink', () => {
-  it('keeps an https link', () => {
-    expect(externalReviewLink('https://g.page/r/fahrschule-spree/review')).toBe(
-      'https://g.page/r/fahrschule-spree/review',
-    );
-  });
-
-  it('drops missing, non-https and malformed values', () => {
-    expect(externalReviewLink(undefined)).toBeNull();
-    expect(externalReviewLink(null)).toBeNull();
-    expect(externalReviewLink('')).toBeNull();
-    expect(externalReviewLink('http://g.page/r/fahrschule-spree/review')).toBeNull();
-    expect(externalReviewLink('javascript:alert(1)')).toBeNull();
-    expect(externalReviewLink('not a url')).toBeNull();
-    expect(externalReviewLink(['https://g.page/r/a'])).toBeNull();
   });
 });

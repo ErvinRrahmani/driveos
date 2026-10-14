@@ -1,12 +1,8 @@
 import { z } from 'zod';
-import { externalReviewLink } from './review-flow';
 
 const lessonData = z.object({ lessonId: z.uuid() });
 const chatData = z.object({ template: z.literal('message_received'), conversationId: z.uuid() });
-const reviewData = z.object({
-  template: z.literal('review_request'),
-  externalReviewUrl: z.unknown().optional(),
-});
+const reviewData = z.object({ template: z.literal('review_request') });
 
 export const REVIEW_HREF = '/student/review';
 
@@ -19,10 +15,5 @@ export function instructorPushTarget(data: unknown): string | null {
 }
 
 export function studentPushTarget(data: unknown): string | null {
-  const review = reviewData.safeParse(data);
-  if (!review.success) return null;
-  const external = externalReviewLink(review.data.externalReviewUrl);
-  return external
-    ? `${REVIEW_HREF}?externalReviewUrl=${encodeURIComponent(external)}`
-    : REVIEW_HREF;
+  return reviewData.safeParse(data).success ? REVIEW_HREF : null;
 }
