@@ -18,6 +18,7 @@ import {
   requireSchool,
 } from './context.js';
 import { addInvitation } from './identity.js';
+import type { MockStore } from './store.js';
 
 const ENROLMENT_PAGE = 'enrolment_page';
 const MANUAL_CONSENT = 'manual';
@@ -40,6 +41,45 @@ function matches(lead: Lead, query: URLSearchParams): boolean {
 
 const isEmail = (contact: string) => contact.includes('@');
 
+type NewLead = Omit<CreateLeadRequest, 'consentTextVersion'> & {
+  source: Lead['source'];
+  consentTextVersion: string;
+};
+
+/** Stores a new lead (`status: new`) and returns its id. */
+export function addLead(store: MockStore, schoolId: string, request: NewLead): string {
+  const now = store.isoNow();
+  const id = store.nextId();
+  store.leads.set(id, {
+    schoolId,
+    version: 1,
+    value: {
+      id,
+      status: 'new',
+      source: request.source,
+      fullName: request.fullName,
+      phone: request.phone ?? null,
+      email: request.email?.toLowerCase() ?? null,
+      licenceClass: request.licenceClass,
+      message: request.message ?? null,
+      isMinor: request.isMinor,
+      guardianName: request.guardianName ?? null,
+      guardianContact: request.guardianContact ?? null,
+      consentTextVersion: request.consentTextVersion,
+      consentedAt: now,
+      note: null,
+      studentId: null,
+      convertedAt: null,
+      lostAt: null,
+      lostReason: null,
+      version: 1,
+      createdAt: now,
+      updatedAt: now,
+    },
+  });
+  return id;
+}
+
 export const leadResolvers: Record<string, MockResolver> = {
   'leads.list': (context) => {
     const { schoolId } = requireSchool(context);
@@ -60,34 +100,10 @@ export const leadResolvers: Record<string, MockResolver> = {
     const { schoolId } = requireSchool(context);
     requireFeature(context, schoolId);
     const request = body<CreateLeadRequest>(context);
-    const now = context.store.isoNow();
-    const id = context.store.nextId();
-    context.store.leads.set(id, {
-      schoolId,
-      version: 1,
-      value: {
-        id,
-        status: 'new',
-        source: 'manual',
-        fullName: request.fullName,
-        phone: request.phone ?? null,
-        email: request.email?.toLowerCase() ?? null,
-        licenceClass: request.licenceClass,
-        message: request.message ?? null,
-        isMinor: request.isMinor,
-        guardianName: request.guardianName ?? null,
-        guardianContact: request.guardianContact ?? null,
-        consentTextVersion: request.consentTextVersion ?? MANUAL_CONSENT,
-        consentedAt: now,
-        note: null,
-        studentId: null,
-        convertedAt: null,
-        lostAt: null,
-        lostReason: null,
-        version: 1,
-        createdAt: now,
-        updatedAt: now,
-      },
+    const id = addLead(context.store, schoolId, {
+      ...request,
+      source: 'manual',
+      consentTextVersion: request.consentTextVersion ?? MANUAL_CONSENT,
     });
     return { body: commandResult(id, 1) };
   },

@@ -5,6 +5,8 @@ import { type AuthStore, createAuthStore, type TokenStorage } from './auth-store
 
 export interface AppServices {
   api: ApiClient;
+  /** For public routes (`/v1/public/...`): never sends the staff token, never refreshes a session. */
+  publicApi: ApiClient;
   auth: AuthStore;
   queryClient: QueryClient;
 }
@@ -40,5 +42,5 @@ export function createServices({
     refreshWhenTokenMissing,
   });
   const api = createApiClient({ baseUrl, fetch: authFetch });
-  return { api, auth, queryClient };
+  return { api, publicApi: plain, auth, queryClient };
 }

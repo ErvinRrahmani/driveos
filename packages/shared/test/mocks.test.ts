@@ -579,6 +579,58 @@ describe('MSW mocks: leads, public page and reviews', () => {
     });
   });
 
+  it('serves the public page from the profile, price flags, instructors and approved reviews', async () => {
+    const pageResult = await call('GET', '/v1/public/schools/fahrschule-spree');
+    expect(pageResult.status).toBe(StatusCodes.OK);
+    const publicPage = dto.publicSchoolPageSchema.parse(pageResult.json);
+    expect(publicPage).toMatchObject({
+      slug: 'fahrschule-spree',
+      name: 'Fahrschule Spree',
+      headline: 'Learn to drive in Berlin Mitte',
+      whatsappUrl: 'https://wa.me/4915550000002',
+      currency: 'EUR',
+      instructors: [{ name: 'Ingo Instructor' }],
+      reviews: { count: 1, averageRatingTenths: 50 },
+      licenceClasses: ['B'],
+      consentTextVersion: 'lead-consent.v1',
+    });
+    expect(publicPage.prices.map((price) => price.name)).toEqual([
+      'Single lesson',
+      '10-lesson package',
+    ]);
+    expect(publicPage.reviews.items.map((review) => review.displayName)).toEqual(['Stella S.']);
+    expect(publicPage.branches[0]?.openingHours.length).toBeGreaterThan(0);
+
+    const unknown = await call('GET', '/v1/public/schools/nope');
+    expect(unknown.status).toBe(StatusCodes.NOT_FOUND);
+    expect(dto.errorResponseSchema.parse(unknown.json).error.code).toBe('school_not_found');
+    const profile = api.store.publicProfiles.get(SAMPLE_IDS.school);
+    if (profile) api.store.publicProfiles.set(SAMPLE_IDS.school, { ...profile, published: false });
+    const hidden = await call('GET', '/v1/public/schools/fahrschule-spree');
+    expect(hidden.status).toBe(StatusCodes.NOT_FOUND);
+  });
+
+  it('captures a public lead and ignores a filled honeypot', async () => {
+    const leadsBefore = api.store.leads.size;
+    const { website: _website, ...request } = DTO_SAMPLES.training.captureLeadRequest;
+    const created = await call('POST', '/v1/public/schools/fahrschule-spree/leads', {
+      body: request,
+    });
+    expect(created.status).toBe(StatusCodes.CREATED);
+    const { id } = dto.captureLeadResponseSchema.parse(created.json);
+    expect(api.store.leads.get(id)).toMatchObject({
+      schoolId: SAMPLE_IDS.school,
+      value: { source: 'page', status: 'new', fullName: 'Mila Minor', isMinor: true },
+    });
+    const bot = await call('POST', '/v1/public/schools/fahrschule-spree/leads', {
+      body: { ...request, fullName: 'Spam Bot', website: 'https://spam.example' },
+    });
+    expect(bot.status).toBe(StatusCodes.CREATED);
+    expect(api.store.leads.size).toBe(leadsBefore + 1);
+    const unknown = await call('POST', '/v1/public/schools/nope/leads', { body: request });
+    expect(unknown.status).toBe(StatusCodes.NOT_FOUND);
+  });
+
   it('lists and moderates reviews', async () => {
     const token = (await login()).session.accessToken;
     const pending = await call('GET', '/v1/reviews?status=pending', { token });

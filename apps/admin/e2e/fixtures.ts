@@ -2,6 +2,7 @@ import { test as base } from '@playwright/test';
 import { CalendarPage } from './pages/calendar.page';
 import { LeadsPage, PublicPageSettings } from './pages/leads.page';
 import { LoginPage } from './pages/login.page';
+import { PublicSchoolPage } from './pages/public-page.page';
 import { InboxPage, InvoicesPage, ReportsPage } from './pages/money-inbox.page';
 import { AdminShell } from './pages/shell.page';
 import { SlotOffersPage } from './pages/slot-offers.page';
@@ -18,6 +19,7 @@ export const test = base.extend<{
   slotOffers: SlotOffersPage;
   leads: LeadsPage;
   publicPage: PublicPageSettings;
+  schoolPage: PublicSchoolPage;
 }>({
   loginPage: async ({ page }, provide) => {
     await provide(new LoginPage(page));
@@ -48,6 +50,9 @@ export const test = base.extend<{
   },
   publicPage: async ({ page }, provide) => {
     await provide(new PublicPageSettings(page));
+  },
+  schoolPage: async ({ page }, provide) => {
+    await provide(new PublicSchoolPage(page));
   },
 });
 

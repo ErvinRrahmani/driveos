@@ -1144,6 +1144,62 @@
       "onPage": "On the page",
       "empty": "No active price items yet",
       "saved": "Price list updated."
+    },
+    "consent": {
+      "v1": "I agree that {{school}} stores the details in this form and contacts me about driving lessons. If the learner is a minor, I am their parent or guardian and I give this consent for them."
+    },
+    "site": {
+      "loading": "Loading the school page…",
+      "notFoundTitle": "School page not found",
+      "notFoundBody": "This driving school page does not exist or is not published.",
+      "errorTitle": "The page could not be loaded",
+      "address": "Address",
+      "openingHours": "Opening hours",
+      "hoursRange": "{{opens}}–{{closes}}",
+      "contact": "Contact the school",
+      "whatsapp": "Message us on WhatsApp",
+      "call": "Call {{phone}}",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "prices": {
+        "title": "Prices",
+        "creditMinutes": "{{count}} minutes of driving"
+      },
+      "instructors": "Our instructors",
+      "reviews": {
+        "title": "Reviews",
+        "average": "{{rating}} / 5",
+        "stars": "Rated {{rating}} out of 5",
+        "count_one": "{{count}} review",
+        "count_other": "{{count}} reviews",
+        "empty": "No reviews yet.",
+        "external": "See more reviews"
+      },
+      "form": {
+        "title": "Enrol or ask a question",
+        "description": "Leave your details and the school will get back to you.",
+        "fullName": "Full name",
+        "phone": "Phone",
+        "email": "Email",
+        "contactHint": "Give a phone number, an email, or both.",
+        "licenceClass": "Licence class",
+        "message": "Message (optional)",
+        "isMinor": "The learner is a minor and I am their parent or guardian",
+        "guardianName": "Parent or guardian name",
+        "guardianContact": "Parent or guardian phone or email",
+        "honeypot": "Leave this field empty",
+        "consentRequired": "Accept the consent to send your enquiry.",
+        "submit": "Send enquiry",
+        "sending": "Sending…",
+        "checkFields": "Check the highlighted fields and send again.",
+        "rateLimited": "Too many enquiries were sent from this connection. Please try again later.",
+        "failed": "Your enquiry could not be sent. Please try again.",
+        "unavailable": "The enquiry form is not available right now. Please contact the school directly."
+      },
+      "thanks": {
+        "title": "Thanks, we got your enquiry",
+        "body": "{{school}} will contact you soon."
+      }
     }
   },
   "reviews": {
