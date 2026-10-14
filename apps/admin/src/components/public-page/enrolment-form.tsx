@@ -3,7 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import { CheckCircle2 } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { applyServerErrors, useAppForm } from '@/components/form';
+import { applyServerErrors, RevealedFields, useAppForm } from '@/components/form';
 import { Button } from '@/components/ui/button';
 import { useServices } from '@/hooks/use-services';
 import {
@@ -171,18 +171,16 @@ function EnrolmentForm({
       <form.AppField name="isMinor">
         {(field) => <field.CheckboxField label={t('publicPage.site.form.isMinor')} />}
       </form.AppField>
-      {/* Always mounted, hidden until needed: fields mounted later by the toggle lose the
-          form-level errors under StrictMode. Hidden inputs are neither focusable nor announced. */}
       <form.Subscribe selector={(state) => state.values.isMinor}>
         {(isMinor) => (
-          <div hidden={!isMinor} className="grid gap-4 sm:grid-cols-2">
+          <RevealedFields shown={isMinor} className="grid gap-4 sm:grid-cols-2">
             <form.AppField name="guardianName">
               {(field) => <field.TextField label={t('publicPage.site.form.guardianName')} />}
             </form.AppField>
             <form.AppField name="guardianContact">
               {(field) => <field.TextField label={t('publicPage.site.form.guardianContact')} />}
             </form.AppField>
-          </div>
+          </RevealedFields>
         )}
       </form.Subscribe>
       <form.Field name="website">

@@ -54,4 +54,5 @@ export function reportSubmitError(form: AnyFormApi, error: unknown, fallback: st
   if (!applyServerErrors(form, error)) toast.error(apiErrorMessage(error, fallback));
 }
 
+export { RevealedFields } from './revealed-fields';
 export type { SelectOption } from './fields';

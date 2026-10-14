@@ -168,4 +168,29 @@ describe('leads inbox', () => {
     );
     expect(created?.value).toMatchObject({ source: 'manual', status: 'new', isMinor: false });
   });
+
+  it('shows the guardian field errors for a minor under StrictMode', async () => {
+    const posts: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      if (request.method === 'POST' && new URL(request.url).pathname === '/v1/leads') {
+        posts.push(request.url);
+      }
+    });
+    renderApp({ path: '/leads', as: 'office', strict: true });
+    await userEvent.click(await screen.findByRole('button', { name: 'Add lead' }));
+    const dialog = await screen.findByRole('dialog', { name: 'New lead' });
+    expect(within(dialog).queryByRole('textbox', { name: 'Parent or guardian name' })).toBeNull();
+    await userEvent.type(within(dialog).getByLabelText('Full name'), 'Mila Minor');
+    await userEvent.type(within(dialog).getByLabelText('Phone'), '+4915550000023');
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /The learner is a minor/ }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    for (const name of ['Parent or guardian name', 'Parent or guardian phone or email']) {
+      const input = await within(dialog).findByRole('textbox', { name });
+      await waitFor(() =>
+        expect([name, input.getAttribute('aria-invalid')]).toEqual([name, 'true']),
+      );
+    }
+    expect(within(dialog).getAllByText('This field is required.')).toHaveLength(2);
+    expect(posts).toHaveLength(0);
+  });
 });

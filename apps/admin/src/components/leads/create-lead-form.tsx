@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { reportSubmitError, useAppForm } from '@/components/form';
+import { reportSubmitError, RevealedFields, useAppForm } from '@/components/form';
 import { Button } from '@/components/ui/button';
 import { DialogFooter } from '@/components/ui/dialog';
 import { useInvalidate } from '@/hooks/use-invalidate';
@@ -130,18 +130,16 @@ export function CreateLeadForm({ onDone }: { onDone: () => void }) {
         {(field) => <field.CheckboxField label={t('leads.form.isMinor')} />}
       </form.AppField>
       <form.Subscribe selector={(state) => state.values.isMinor}>
-        {(isMinor) =>
-          isMinor && (
-            <div className="grid grid-cols-2 gap-4">
-              <form.AppField name="guardianName">
-                {(field) => <field.TextField label={t('leads.form.guardianName')} />}
-              </form.AppField>
-              <form.AppField name="guardianContact">
-                {(field) => <field.TextField label={t('leads.form.guardianContact')} />}
-              </form.AppField>
-            </div>
-          )
-        }
+        {(isMinor) => (
+          <RevealedFields shown={isMinor} className="grid grid-cols-2 gap-4">
+            <form.AppField name="guardianName">
+              {(field) => <field.TextField label={t('leads.form.guardianName')} />}
+            </form.AppField>
+            <form.AppField name="guardianContact">
+              {(field) => <field.TextField label={t('leads.form.guardianContact')} />}
+            </form.AppField>
+          </RevealedFields>
+        )}
       </form.Subscribe>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>
