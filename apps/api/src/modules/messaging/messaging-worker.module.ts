@@ -19,7 +19,9 @@ import { ConversationsSubscriber } from './subscribers/conversations.subscriber.
 import { GuardianConsentNotificationsSubscriber } from './subscribers/guardian-consent-notifications.subscriber.js';
 import { GrowthReportNotificationsSubscriber } from './subscribers/growth-report-notifications.subscriber.js';
 import { InvitationNotificationsSubscriber } from './subscribers/invitation-notifications.subscriber.js';
+import { LeadNotificationsSubscriber } from './subscribers/lead-notifications.subscriber.js';
 import { LessonNotificationsSubscriber } from './subscribers/lesson-notifications.subscriber.js';
+import { ReviewRequestSubscriber } from './subscribers/review-request.subscriber.js';
 import { SlotOfferNotificationsSubscriber } from './subscribers/slot-offer-notifications.subscriber.js';
 
 @Module({
@@ -45,6 +47,8 @@ import { SlotOfferNotificationsSubscriber } from './subscribers/slot-offer-notif
     ChatNotificationsSubscriber,
     SlotOfferNotificationsSubscriber,
     GrowthReportNotificationsSubscriber,
+    LeadNotificationsSubscriber,
+    ReviewRequestSubscriber,
   ],
 })
 export class MessagingWorkerModule {}

@@ -159,3 +159,17 @@ describe('API_PUBLIC_URL', () => {
     expect(() => parseEnv({ ...valid, API_PUBLIC_URL: 'not a url' })).toThrow(/API_PUBLIC_URL/);
   });
 });
+
+describe('MOBILE_DEEP_LINK_SCHEME', () => {
+  it('defaults to driveos:// and accepts only a bare scheme', () => {
+    expect(parseEnv(valid).MOBILE_DEEP_LINK_SCHEME).toBe('driveos://');
+    expect(parseEnv({ ...valid, MOBILE_DEEP_LINK_SCHEME: 'driveos-dev://' })).toMatchObject({
+      MOBILE_DEEP_LINK_SCHEME: 'driveos-dev://',
+    });
+    for (const bad of ['driveos', 'driveos://student/', 'https://example.com']) {
+      expect(() => parseEnv({ ...valid, MOBILE_DEEP_LINK_SCHEME: bad })).toThrow(
+        /MOBILE_DEEP_LINK_SCHEME/,
+      );
+    }
+  });
+});

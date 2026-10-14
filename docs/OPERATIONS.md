@@ -207,6 +207,7 @@ The API and worker validate `apps/api/.env` with the zod schema in [`apps/api/sr
 | `LOG_LEVEL` | required | pino level | `info`. |
 | `ADMIN_ORIGIN` | required | Single CORS origin | The admin app's https origin. |
 | `APP_PUBLIC_URL` | `http://localhost:15173` | Base of links in invitation and guardian-consent messages | Public admin/app URL. |
+| `MOBILE_DEEP_LINK_SCHEME` | `driveos://` | Scheme of the mobile app's deep links in notifications (the review request opens `<scheme>student/review`) | The scheme registered by the store build of the Expo app. |
 | `API_PUBLIC_URL` | `http://localhost:${API_PORT}` | Public base URL of the API; the fake payment provider builds its `/fake-pay/...` checkout links on it | Public https API URL. |
 | `OPENAPI_UI_ENABLED` | `true` outside production, `false` in production | Serves Swagger UI at `/docs` and the OpenAPI JSON at `/docs-json` | Leave unset (off). If turned on, restrict `/docs*` at the proxy. `pnpm generate` does not depend on it. |
 | `DATABASE_URL` | required | `app_rw` connection | Per-environment password; TLS (`sslmode=require` or stricter). |

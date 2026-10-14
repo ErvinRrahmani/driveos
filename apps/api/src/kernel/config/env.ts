@@ -12,6 +12,10 @@ export const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']),
   ADMIN_ORIGIN: z.url(),
   APP_PUBLIC_URL: z.url().default('http://localhost:15173'),
+  MOBILE_DEEP_LINK_SCHEME: z
+    .string()
+    .regex(/^[a-z][a-z0-9+.-]*:\/\/$/, 'expected a URL scheme such as driveos://')
+    .default('driveos://'),
   API_PUBLIC_URL: z.url().optional(),
   OPENAPI_UI_ENABLED: z.stringbool().optional(),
   DATABASE_URL: postgresUrl,

@@ -143,6 +143,19 @@
       "push_body": "A lesson slot on {{when}} is free. Offer ends {{expires}}.",
       "email_subject": "Free lesson slot on {{when}}",
       "email_text": "{{schoolName}} has a free lesson slot on {{when}}. Book it in the DriveOS app before {{expires}}."
+    },
+    "lead_captured": {
+      "push_title": "New enquiry",
+      "push_body": "{{name}} asked about a class {{licenceClass}} licence.",
+      "email_subject": "New enquiry from {{name}}",
+      "email_text": "{{name}} sent an enquiry about a class {{licenceClass}} licence through the {{schoolName}} page. Open Leads in DriveOS to get in touch."
+    },
+    "review_request": {
+      "push_title": "Congratulations!",
+      "push_body": "You passed your driving test. Tell others how {{schoolName}} did.",
+      "email_subject": "Congratulations on passing! How did {{schoolName}} do?",
+      "email_text": "Congratulations on passing your practical driving test! Tell other learners how {{schoolName}} did by leaving a review in the DriveOS app: {{url}}",
+      "email_text_external_review": "Congratulations on passing your practical driving test! Tell other learners how {{schoolName}} did by leaving a review in the DriveOS app: {{url}}\n\nYou can also review {{schoolName}} here: {{externalReviewUrl}}"
     }
   },
   "invoices": {

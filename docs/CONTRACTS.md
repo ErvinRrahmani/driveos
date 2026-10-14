@@ -71,7 +71,8 @@ They join the caller's tenant transaction (SPEC §3.4). Inject them by token or 
   production; `openApiUiEnabled(env)`) gates Swagger UI `/docs` and `/docs-json`; `pnpm generate`
   builds the document directly and does not depend on it. `API_PUBLIC_URL` (default
   `http://localhost:${API_PORT}`, `apiPublicUrl(env)`) is the base of the fake payment provider's
-  checkout links.
+  checkout links. `MOBILE_DEEP_LINK_SCHEME` (default `driveos://`, must be a bare `scheme://`) is
+  the base of mobile deep links in notifications (`review_request` → `<scheme>student/review`).
 - **Alerts** (`apps/api/src/kernel/alerts`, worker only). `AlertProbes.register({ name,
   threshold, measure(now) → { value, schoolId } })` from a module's worker provider; an alert
   fires while `value > threshold`. The scheduled job `platform.alerts` (every
@@ -120,18 +121,19 @@ idempotent by event id (`event_deliveries`); projections also skip stale `aggreg
 | theory | `QuestionPackPublished`, `TheorySessionFinished` | — |
 | billing | `PaymentSucceeded`, `PaymentFailed`, `CashPaymentRecorded`, `RefundIssued`, `LedgerEntryRecorded`, `EntitlementGranted`, `InvoiceIssued`, `CreditNoteIssued`, `PlatformChargeCreated`, `PlatformStatementIssued` | `billing.student-fee` ← `StudentEnrolled`; `billing.student-fee-reversal` ← `StudentArchived` |
 | documents | `DocumentUploaded`, `ContractCreated`, `ContractSigned`, `ContractCompleted` | `documents.student-anonymized` ← `StudentAnonymized` |
-| messaging | `MessageSent`, `DeviceTokenInvalidated` | `messaging.conversations` ← `StudentCreated`, `InstructorAssigned`; `messaging.invitation-notifications` ← `InvitationCreated`; `messaging.lesson-notifications` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`; `messaging.billing-notifications` ← `InvoiceIssued`, `PlatformStatementIssued`; `messaging.contract-notifications` ← `ContractCreated`; `messaging.chat-notifications` ← `MessageSent`; `messaging.slot-offer-notifications` ← `SlotOfferCreated`; `messaging.growth-report-notifications` ← `GrowthReportGenerated`; `messaging.guardian-consent-notifications` ← `GuardianLinked` |
+| messaging | `MessageSent`, `DeviceTokenInvalidated` | `messaging.conversations` ← `StudentCreated`, `InstructorAssigned`; `messaging.invitation-notifications` ← `InvitationCreated`; `messaging.lesson-notifications` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`; `messaging.billing-notifications` ← `InvoiceIssued`, `PlatformStatementIssued`; `messaging.contract-notifications` ← `ContractCreated`; `messaging.chat-notifications` ← `MessageSent`; `messaging.slot-offer-notifications` ← `SlotOfferCreated`; `messaging.growth-report-notifications` ← `GrowthReportGenerated`; `messaging.guardian-consent-notifications` ← `GuardianLinked`; `messaging.lead-notifications` ← `LeadCaptured`; `messaging.review-request` ← `TestAttemptRecorded` |
 | reporting | `GrowthReportGenerated` | `reporting.school-metrics` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `SlotOfferCreated`, `SlotOfferAccepted`, `SlotOfferExpired`, `PaymentSucceeded`, `CashPaymentRecorded`, `RefundIssued`, `TestAttemptRecorded`, `AvailabilityChanged`, `TimeOffAdded`, `LeadCaptured`, `LeadConverted` |
 
 Differences from the SPEC §3.6 table: messaging also emits `DeviceTokenInvalidated` (consumed by
-identity); training's `GuardianLinked` is consumed by messaging (consent request); scheduling does
+identity); training's `GuardianLinked` (consent request), `LeadCaptured` (staff alert) and
+`TestAttemptRecorded` (review request) are consumed by messaging; scheduling does
 not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `TheorySessionFinished`,
 `QuestionPackPublished`, `PaymentFailed`, `EntitlementGranted`, `CreditNoteIssued`,
 `PlatformChargeCreated`, `WaitingListJoined`, `DocumentUploaded`, `ContractSigned`,
 `ContractCompleted`, `SchoolCreated`,
 `SchoolSettingsChanged`, `BranchChanged`, `PaymentAccountConnected`, `ReviewSubmitted`,
-`ReviewModerated`, `LeadStatusChanged` or the platform events yet (messaging consumes the lead
-events from enrolment page task 7; reporting consumes `LeadCaptured` and `LeadConverted`). The school module also consumes training's
+`ReviewModerated`, `LeadStatusChanged` or the platform events yet (reporting consumes
+`LeadCaptured` and `LeadConverted`). The school module also consumes training's
 `StudentAnonymized` (enrolment page design §4.3).
 
 ### identity (owned by step 3a)
@@ -755,12 +757,14 @@ events from enrolment page task 7; reporting consumes `LeadCaptured` and `LeadCo
     `contract_created { contractId }`, `platform_statement_issued { statementId, month, totalMinor,
     currency }`, `growth_report_generated { reportId, month }`, `message_received { conversationId,
     senderName, preview }`, `slot_offer_created { offerId, start, expiresAt }`,
-    `guardian_consent_requested { guardianLinkId, studentId, url }`. Texts live in i18n
-    `notifications.<template>.{push_title,push_body,sms,email_subject,email_text}`.
-  - Default channels: invitation sms + email (by contact); lesson templates push, or email when the
-    user has no device; invoice, contract, statement, growth report, slot offer and guardian consent
-    push + email;
-    chat push only.
+    `guardian_consent_requested { guardianLinkId, studentId, url }`, `lead_captured { leadId,
+    fullName, licenceClass }`, `review_request { studentId, url, externalReviewUrl | null }`. Texts
+    live in i18n `notifications.<template>.{push_title,push_body,sms,email_subject,email_text}`;
+    `review_request` with an `externalReviewUrl` renders `email_text_external_review` (i18next
+    context `external_review`; the push keeps the short base text).
+  - Default channels: invitation sms + email (by contact); lesson templates, lead captured and review
+    request push, or email when the user has no device; invoice, contract, statement, growth report,
+    slot offer and guardian consent push + email; chat push only.
   - `timing` (SPEC §7, school zone, quiet hours from school settings, may wrap midnight; email is
     never held): `deferred` → end of quiet hours; `advanced` → if `sendAt` is in quiet hours, one
     minute before they started (or now if that has passed); `immediate` → now; `email_only_at_night`
@@ -798,6 +802,14 @@ events from enrolment page task 7; reporting consumes `LeadCaptured` and `LeadCo
     hours), link `APP_PUBLIC_URL/parent/consent/<guardianLinkId>`, `dedupeKey`
     `guardian-consent:<guardianLinkId>`; nothing for an adult student. The push `data` carries
     `template`, `guardianLinkId` and `studentId`.
+  - `messaging.lead-notifications`: `LeadCaptured` → `lead_captured` to every active owner and
+    office member (the `leads.read` roles, de-duplicated) except the event's actor (a staff member
+    entering a manual lead), deferred. The push `data` carries `template` and `leadId`.
+  - `messaging.review-request`: `TestAttemptRecorded` with `kind = practical` and `result = passed`
+    → `review_request` to the student's own user only (skipped when the student has no login),
+    deferred, `url` `<MOBILE_DEEP_LINK_SCHEME>student/review`, `externalReviewUrl` from school
+    `GetPublicProfileQuery` (null without a profile), `dedupeKey` `review_request:<studentId>` so a
+    second pass sends nothing. The push `data` carries `template` and `studentId`.
 - Delivery: `messaging.notification-dispatch` (every 30 s, per school) takes up to 100 due
   `scheduled` rows (`for update skip locked`), marks rows past `skip_after` `skipped`, renders the
   template in the row's/user's locale (fallback: school locale) and sends through `PushSender` (every
@@ -811,7 +823,8 @@ events from enrolment page task 7; reporting consumes `LeadCaptured` and `LeadCo
   `conversation_members.last_read_message_id` is `ON DELETE SET NULL`.
 - Uses: training `GetStudentByUserQuery`, `GetStudentBookingProfileQuery`,
   `GetStudentRecipientsQuery`, `ListStudentNamesQuery`; school `GetSchoolQuery`,
-  `GetSchoolSettingsQuery`; identity `MembershipDirectory`, `ListDevicesForUsersQuery`.
+  `GetSchoolSettingsQuery`, `GetPublicProfileQuery`; identity `MembershipDirectory`,
+  `ListDevicesForUsersQuery`.
 - Chat rules (D5): participants are derived, not stored. `student_school`: the student and every
   `chat.read_all` holder (owner/office) may read and post. `student_instructor`: the student and that
   instructor may post; owner/office may read and mark read but get `403 chat_read_only` on post, and

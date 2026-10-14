@@ -30,6 +30,12 @@ export const TEMPLATE_PAYLOADS = {
     studentId: z.uuid(),
     url: z.url(),
   }),
+  lead_captured: z.object({ leadId: z.uuid(), fullName: z.string(), licenceClass: z.string() }),
+  review_request: z.object({
+    studentId: z.uuid(),
+    url: z.url(),
+    externalReviewUrl: z.url().nullable(),
+  }),
 } as const;
 
 export type NotificationTemplate = keyof typeof TEMPLATE_PAYLOADS;
@@ -62,6 +68,8 @@ export const TEMPLATE_POLICIES: Record<NotificationTemplate, TemplatePolicy> = {
   message_received: { channels: ['push'], emailWhenNoDevice: false },
   slot_offer_created: PUSH_AND_EMAIL,
   guardian_consent_requested: PUSH_AND_EMAIL,
+  lead_captured: PUSH_OR_EMAIL,
+  review_request: PUSH_OR_EMAIL,
 };
 
 export function parseTemplatePayload(
@@ -159,6 +167,22 @@ export function templateVars(
     case 'guardian_consent_requested': {
       const p = TEMPLATE_PAYLOADS.guardian_consent_requested.parse(raw);
       return { ...base, url: p.url };
+    }
+    case 'lead_captured': {
+      const p = TEMPLATE_PAYLOADS.lead_captured.parse(raw);
+      return { ...base, name: p.fullName, licenceClass: p.licenceClass };
+    }
+    case 'review_request': {
+      const p = TEMPLATE_PAYLOADS.review_request.parse(raw);
+      if (!p.externalReviewUrl) return { ...base, url: p.url };
+      // i18next `context`: picks `<part>_external_review` (the email text with the extra link)
+      // and falls back to the plain part for the push, which stays short.
+      return {
+        ...base,
+        url: p.url,
+        externalReviewUrl: p.externalReviewUrl,
+        context: 'external_review',
+      };
     }
   }
 }
