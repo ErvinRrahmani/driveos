@@ -346,7 +346,12 @@ describe('MSW mocks', () => {
     const me = await call('GET', '/v1/me', { token: session.accessToken });
     expect(dto.meResponseSchema.parse(me.json)).toMatchObject({
       user: { fullName: 'Otto Owner' },
-      active: { membershipId: SAMPLE_IDS.ownerMembership, roles: ['owner'], studentId: null },
+      active: {
+        membershipId: SAMPLE_IDS.ownerMembership,
+        roles: ['owner'],
+        studentId: null,
+        features: ['enrolment_page'],
+      },
     });
 
     const foreign = await call('POST', '/v1/me/switch-school', {

@@ -143,7 +143,8 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 - Queries: `GetMeQuery` (`GET /v1/me`; `active` also carries `grants`, the sorted effective
   permission set = role permissions + the membership's `permission_grants`, and `studentId`, the
   caller's student record in the active school via training `GetStudentByUserQuery` when the roles
-  include `student`, else null), `ListInvitationsQuery(limit, cursor?, { studentId?, role? })`
+  include `student`, else null, and `features`, the active school's plan features via platform
+  `GetCurrentSubscriptionQuery`; empty for a school other than the tenant's), `ListInvitationsQuery(limit, cursor?, { studentId?, role? })`
   (`GET /v1/invitations?studentId=&role=`, open invitations, newest first, cursor = invitation id;
   `role` matches any role of the invitation), `ListDevicesForUsersQuery(userIds) → { id,
   userId, pushToken, platform, locale }[]` (registered in the API and the worker; a school scope reads the
@@ -175,7 +176,10 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 - Nest: `PlatformModule`; service `AUDIT_WRITER`.
 - Commands: `CreateSchoolCommand`, `CreatePlanCommand`, `UpdatePlanCommand`,
   `StartSupportSessionCommand`, `EndSupportSessionCommand`.
-- Queries: `ListPlansQuery`, `GetCurrentSubscriptionQuery`, `ListAuditLogQuery`.
+- Queries: `ListPlansQuery`, `GetCurrentSubscriptionQuery` (carries the plan's `features`),
+  `SchoolHasFeatureQuery(feature) → boolean` (true when the school's active plan lists the feature;
+  false without a subscription; `PLAN_FEATURES` = `enrolment_page`), `ListAuditLogQuery`. The plan
+  DTO and the create/update plan requests carry `features` (`text[]`, default empty).
 - Emits: `SupportSessionStarted`, `SupportSessionEnded`, `SubscriptionChanged`.
 - Worker: `PlatformWorkerModule` registers `GetCurrentSubscriptionQuery` in the worker.
 - Uses: theory `ImportQuestionPackCommand`, `PublishQuestionPackCommand` (the

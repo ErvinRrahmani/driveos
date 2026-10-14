@@ -21,6 +21,7 @@ export class ListPlansHandler implements IQueryHandler<ListPlansQuery, PlanListR
         studentFeeMinor: plans.studentFeeMinor,
         currency: plans.currency,
         maxInstructorSeats: plans.maxInstructorSeats,
+        features: plans.features,
         active: plans.active,
       })
       .from(plans)

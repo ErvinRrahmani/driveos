@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { type IQueryHandler, QueryBus, QueryHandler } from '../../../kernel/cqrs/index.js';
 import { notFound } from '../../../kernel/http/errors.js';
 import { TenantContext } from '../../../kernel/tenant/tenant-context.js';
+import { GetCurrentSubscriptionQuery } from '../../platform/index.js';
 import { GetStudentByUserQuery } from '../../training/index.js';
 import { effectivePermissions } from '../domain/permissions.js';
 import { findActiveMembership } from '../domain/session.js';
@@ -54,17 +55,23 @@ export class GetMeHandler implements IQueryHandler<GetMeQuery, MeResponse> {
   private async scopeOf(
     userId: string,
     active: { membershipId: string; schoolId: string; roles: readonly string[] },
-  ): Promise<{ grants: string[]; studentId: string | null }> {
+  ): Promise<{ grants: string[]; studentId: string | null; features: string[] }> {
     if (this.tenant.schoolId !== active.schoolId) {
-      return { grants: [...effectivePermissions(active.roles, [])].sort(), studentId: null };
+      return {
+        grants: [...effectivePermissions(active.roles, [])].sort(),
+        studentId: null,
+        features: [],
+      };
     }
     const grants = await this.grantsCache.grants(active.schoolId, userId, active.membershipId);
     const student = active.roles.includes('student')
       ? await this.queryBus.execute(new GetStudentByUserQuery(userId))
       : null;
+    const subscription = await this.queryBus.execute(new GetCurrentSubscriptionQuery());
     return {
       grants: [...effectivePermissions(active.roles, grants)].sort(),
       studentId: student?.studentId ?? null,
+      features: subscription?.features ?? [],
     };
   }
 }

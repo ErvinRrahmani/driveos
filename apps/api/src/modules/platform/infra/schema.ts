@@ -1,3 +1,4 @@
+import type { PlanFeature } from '@driveos/shared';
 import { boolean, foreignKey, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { id, minor, timestamps, tstz } from '../../../kernel/db/columns.js';
 import { platformAdmins, users } from '../../identity/infra/schema.js';
@@ -11,6 +12,7 @@ export const plans = pgTable('plans', {
   studentFeeMinor: minor('student_fee_minor').notNull(),
   currency: text('currency').notNull(),
   maxInstructorSeats: integer('max_instructor_seats'),
+  features: text('features').array().$type<PlanFeature[]>().notNull().default([]),
   active: boolean('active').notNull(),
   version: integer('version').notNull().default(1),
   ...timestamps(),

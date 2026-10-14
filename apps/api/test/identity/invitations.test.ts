@@ -353,6 +353,7 @@ describe('invitations', () => {
         roles: ['instructor'],
         grants: expect.arrayContaining(['sync.use']),
         studentId: null,
+        features: [],
       });
     });
 

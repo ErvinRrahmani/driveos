@@ -85,6 +85,7 @@ export const PLAN_FIXTURES = [
     studentFeeMinor: 300,
     currency: 'EUR',
     maxInstructorSeats: 1,
+    features: [],
   },
   {
     id: seedId(ENTITY.plan, 2),
@@ -94,5 +95,6 @@ export const PLAN_FIXTURES = [
     studentFeeMinor: 300,
     currency: 'EUR',
     maxInstructorSeats: null,
+    features: ['enrolment_page'],
   },
 ] as const;

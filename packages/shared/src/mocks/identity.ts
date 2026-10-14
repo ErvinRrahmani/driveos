@@ -18,12 +18,20 @@ import {
   requireSchool,
   requireSession,
 } from './context.js';
+import { BERLIN } from './fixtures/schools.js';
 import type { MockSession, MockStore, MockUser } from './store.js';
 import { StatusCodes } from 'http-status-codes';
 
 export const MOCK_LOGIN_CODE = '000000';
 const ACCESS_TOKEN_SECONDS = 900;
 const INVITATION_DAYS = 7;
+
+/** The mock has no subscriptions; the Berlin demo school is on the Standard plan. */
+function planFeaturesOf(store: MockStore, schoolId: string): string[] {
+  if (schoolId !== BERLIN) return [];
+  const standard = [...store.plans.values()].find((plan) => plan.value.code === 'standard');
+  return standard ? [...standard.value.features] : [];
+}
 
 function memberships(store: MockStore, userId: string): MembershipSummary[] {
   return [...store.memberships.values()]
@@ -113,6 +121,7 @@ export const identityResolvers: Record<string, MockResolver> = {
                     student.schoolId === active.schoolId && student.value.userId === active.userId,
                 )?.value.id ?? null)
               : null,
+            features: planFeaturesOf(context.store, active.schoolId),
           }
         : null,
     };

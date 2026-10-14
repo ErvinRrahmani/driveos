@@ -266,6 +266,7 @@ describe('sessions: refresh, logout, /v1/me, switch-school, devices', () => {
           roles: ['owner', 'instructor'],
           grants: expect.arrayContaining(['prices.manage', 'sync.use']),
           studentId: null,
+          features: [],
         },
       });
       expect(res.body.active.grants).not.toContain('platform.manage');
@@ -346,6 +347,7 @@ describe('sessions: refresh, logout, /v1/me, switch-school, devices', () => {
         roles: ['student'],
         grants: expect.arrayContaining(['theory.use']),
         studentId: null,
+        features: [],
       });
       await refresh(res.body.refreshToken).expect(StatusCodes.OK);
     });

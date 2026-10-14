@@ -83,6 +83,7 @@ describe('identity response DTOs', () => {
         roles: ['owner'],
         grants: ['prices.manage'],
         studentId: null,
+        features: ['enrolment_page'],
       },
     };
     expect(meResponseSchema.parse(me)).toEqual(me);
@@ -91,6 +92,9 @@ describe('identity response DTOs', () => {
     ).toBe(true);
     expect(
       meResponseSchema.safeParse({ ...me, active: { ...me.active, grants: undefined } }).success,
+    ).toBe(false);
+    expect(
+      meResponseSchema.safeParse({ ...me, active: { ...me.active, features: undefined } }).success,
     ).toBe(false);
     expect(meResponseSchema.safeParse({ ...me, active: null }).success).toBe(true);
   });

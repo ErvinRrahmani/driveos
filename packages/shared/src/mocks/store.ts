@@ -311,7 +311,11 @@ export class MockStore {
       });
     }
     for (const plan of PLAN_FIXTURES) {
-      this.plans.set(plan.id, { schoolId: null, version: 1, value: { ...plan, active: true } });
+      this.plans.set(plan.id, {
+        schoolId: null,
+        version: 1,
+        value: { ...plan, features: [...plan.features], active: true },
+      });
     }
     this.loadStudents();
     this.loadLessons();

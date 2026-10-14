@@ -68,6 +68,15 @@ describe('plans', () => {
     expect(ok(updatePlanRequestSchema, {})).toBe(false);
     expect(ok(updatePlanRequestSchema, { active: false })).toBe(true);
   });
+
+  it('takes known feature slugs, defaults to none and leaves features alone on a patch', () => {
+    const { features: _features, ...plan } = DTO_SAMPLES.platform.createPlanRequest;
+    expect(createPlanRequestSchema.parse(plan).features).toEqual([]);
+    expect(ok(createPlanRequestSchema, { ...plan, features: ['enrolment_page'] })).toBe(true);
+    expect(ok(createPlanRequestSchema, { ...plan, features: ['teleport'] })).toBe(false);
+    expect(ok(updatePlanRequestSchema, { features: ['teleport'] })).toBe(false);
+    expect(updatePlanRequestSchema.parse({ active: false })).toEqual({ active: false });
+  });
 });
 
 describe('POST /v1/platform/question-packs/import', () => {

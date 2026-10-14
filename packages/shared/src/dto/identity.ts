@@ -67,6 +67,7 @@ export const meResponseSchema = z.object({
       roles: z.array(membershipRoleSchema),
       grants: z.array(z.string()),
       studentId: z.uuid().nullable(),
+      features: z.array(z.string()),
     })
     .nullable(),
 });

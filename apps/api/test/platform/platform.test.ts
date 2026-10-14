@@ -134,7 +134,7 @@ describe('platform module', () => {
       const code = `std-${randomUUID().slice(0, 8)}`;
       const id = await createPlan(code);
       const list = await http.get('/v1/platform/plans?limit=200').set(admin).expect(StatusCodes.OK);
-      expect(list.body.items).toContainEqual({ id, ...planBody(code), active: true });
+      expect(list.body.items).toContainEqual({ id, ...planBody(code), features: [], active: true });
 
       const patched = await http
         .patch(`/v1/platform/plans/${id}`)

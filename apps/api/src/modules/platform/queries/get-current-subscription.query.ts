@@ -7,6 +7,7 @@ export interface CurrentSubscription {
   baseAmountMinor: number;
   studentFeeMinor: number;
   currency: string;
+  features: string[];
   startedAt: Date;
 }
 

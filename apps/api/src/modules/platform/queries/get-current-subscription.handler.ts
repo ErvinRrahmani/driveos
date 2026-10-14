@@ -23,6 +23,7 @@ export class GetCurrentSubscriptionHandler implements IQueryHandler<
         baseAmountMinor: plans.baseAmountMinor,
         studentFeeMinor: plans.studentFeeMinor,
         currency: plans.currency,
+        features: plans.features,
         startedAt: subscriptions.startedAt,
       })
       .from(subscriptions)

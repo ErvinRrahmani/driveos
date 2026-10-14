@@ -17,6 +17,7 @@ import { ListAuditLogHandler } from './queries/list-audit-log.handler.js';
 import { AlertStore } from '../../kernel/alerts/alert-store.js';
 import { GetPlatformAlertsHandler } from './queries/get-platform-alerts.handler.js';
 import { ListPlansHandler } from './queries/list-plans.handler.js';
+import { SchoolHasFeatureHandler } from './queries/school-has-feature.handler.js';
 
 @Module({
   imports: [IdentityModule],
@@ -37,6 +38,7 @@ import { ListPlansHandler } from './queries/list-plans.handler.js';
     AlertStore,
     ListAuditLogHandler,
     GetCurrentSubscriptionHandler,
+    SchoolHasFeatureHandler,
   ],
   exports: [AUDIT_WRITER],
 })

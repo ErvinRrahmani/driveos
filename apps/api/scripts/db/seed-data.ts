@@ -116,6 +116,7 @@ export const SEED = {
       studentFeeMinor: 300,
       currency: CURRENCY,
       maxInstructorSeats: 1,
+      features: [],
       active: true,
     },
     standard: {
@@ -126,6 +127,7 @@ export const SEED = {
       studentFeeMinor: 300,
       currency: CURRENCY,
       maxInstructorSeats: null,
+      features: ['enrolment_page'],
       active: true,
     },
   } satisfies Record<string, typeof plans.$inferInsert>,

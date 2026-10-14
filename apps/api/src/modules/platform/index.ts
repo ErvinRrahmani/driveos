@@ -10,3 +10,4 @@ export {
 } from './queries/get-current-subscription.query.js';
 export { ListAuditLogQuery } from './queries/list-audit-log.query.js';
 export { ListPlansQuery } from './queries/list-plans.query.js';
+export { SchoolHasFeatureQuery } from './queries/school-has-feature.query.js';

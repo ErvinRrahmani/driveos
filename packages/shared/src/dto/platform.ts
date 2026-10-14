@@ -56,6 +56,12 @@ export type CreateSchoolResponse = z.infer<typeof createSchoolResponseSchema>;
 
 const nonNegativeMinor = amountMinorSchema.nonnegative();
 
+export const PLAN_FEATURES = ['enrolment_page'] as const;
+const planFeatureSchema = z.enum(PLAN_FEATURES);
+export type PlanFeature = z.infer<typeof planFeatureSchema>;
+
+const planFeaturesSchema = z.array(planFeatureSchema).max(20);
+
 const planFields = {
   code: z
     .string()
@@ -66,6 +72,7 @@ const planFields = {
   studentFeeMinor: nonNegativeMinor,
   currency: currencySchema,
   maxInstructorSeats: z.number().int().positive().nullable(),
+  features: planFeaturesSchema.default([]),
 };
 
 export const planSchema = z.object({ id: z.uuid(), ...planFields, active: z.boolean() });
@@ -91,6 +98,7 @@ export const updatePlanRequestSchema = z
     baseAmountMinor: planFields.baseAmountMinor,
     studentFeeMinor: planFields.studentFeeMinor,
     maxInstructorSeats: planFields.maxInstructorSeats,
+    features: planFeaturesSchema,
     active: z.boolean(),
   })
   .partial()

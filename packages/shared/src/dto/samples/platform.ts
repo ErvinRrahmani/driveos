@@ -33,6 +33,7 @@ const plan = {
   studentFeeMinor: 500,
   currency: 'EUR',
   maxInstructorSeats: null,
+  features: ['enrolment_page'],
   active: true,
 } satisfies Plan;
 
@@ -125,6 +126,7 @@ export const platformSamples = {
     studentFeeMinor: 400,
     currency: 'EUR',
     maxInstructorSeats: 20,
+    features: ['enrolment_page'],
     active: true,
   } satisfies CreatePlanRequest,
   updatePlanRequest: { studentFeeMinor: 450 } satisfies UpdatePlanRequest,
