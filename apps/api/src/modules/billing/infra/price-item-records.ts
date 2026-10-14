@@ -17,6 +17,7 @@ export function toPriceItem(row: typeof priceItems.$inferSelect): PriceItem {
     taxRateBp: row.taxRateBp,
     sortOrder: row.sortOrder,
     active: row.active,
+    showOnPublicPage: row.showOnPublicPage,
   };
 }
 

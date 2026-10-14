@@ -450,6 +450,8 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   revoked), `GetStudentMinorStatusQuery` (`{ isMinor, dateOfBirth, ageOfMajority,
   hasGuardianConsent }`, null for an unknown student), `GetStudentRecipientsQuery`
   (`{ studentUserId, guardianUserIds }`, guardians with consent only), `GetTestAttemptStatsQuery`,
+  `HasPassedPracticalQuery(studentId)` → boolean (a `practical` test attempt with result `passed`
+  exists; false for an unknown student; the school module's review gate),
   `ListStudentIdsForInstructorQuery` (active assignments), `ListStudentNamesQuery(studentIds)` →
   `[{ studentId, fullName }]` (scheduling's calendar and lesson views),
   `ListStudentBookingProfilesQuery({ studentIds?, area?, licenceClass?, activeOnly? })` →
@@ -583,7 +585,9 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   `HandlePaymentWebhookCommand`, `RecordCashPaymentCommand`, `IssueRefundCommand`,
   `AdjustLedgerCommand`, `GrantEntitlementCommand`, `ConsumeEntitlementCommand`,
   `ReleaseEntitlementCommand`, `MarkStatementPaidCommand`.
-- Queries: `ListPriceItemsQuery`, `GetShopQuery`, `GetBalanceQuery`, `ListLedgerEntriesQuery`,
+- Queries: `ListPriceItemsQuery`, `ListPublicPriceItemsQuery` (active items with
+  `showOnPublicPage` as `{ id, name, kind, amountMinor, currency, creditMinutes }[]`, by sort order
+  then name; the school module's public page), `GetShopQuery`, `GetBalanceQuery`, `ListLedgerEntriesQuery`,
   `GetStudentEntitlementsQuery`, `HasEntitlementQuery`, `ListInvoicesQuery`, `GetInvoicePdfQuery`,
   `ListPlatformStatementsQuery`, `ListSchoolPlatformStatementsQuery`.
 - Emits: `PaymentSucceeded`, `PaymentFailed`, `CashPaymentRecorded`, `RefundIssued`,

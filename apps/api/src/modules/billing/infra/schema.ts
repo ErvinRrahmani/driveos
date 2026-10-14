@@ -44,6 +44,7 @@ export const priceItems = pgTable('price_items', {
   currency: text('currency').notNull(),
   taxRateBp: integer('tax_rate_bp').notNull(),
   active: boolean('active').notNull(),
+  showOnPublicPage: boolean('show_on_public_page').notNull().default(false),
   sortOrder: integer('sort_order').notNull(),
   version: integer('version').notNull().default(1),
   ...timestamps(),

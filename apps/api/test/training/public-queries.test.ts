@@ -6,10 +6,13 @@ import {
   GetStudentByUserQuery,
   GetStudentMinorStatusQuery,
   GetStudentRecipientsQuery,
+  HasPassedPracticalQuery,
   ListLinkedStudentIdsQuery,
   ListProgressEntriesQuery,
   ListStudentIdsForInstructorQuery,
 } from '../../src/modules/training/index.js';
+import { newId } from '../../src/kernel/db/columns.js';
+import { testAttempts } from '../../src/modules/training/infra/schema.js';
 import { connect, createScratchDatabase, type ScratchDatabase } from '../db/scratch-database.js';
 import { createStudent, createUser } from '../identity/support.js';
 import { executeAs } from '../support/handlers.js';
@@ -183,5 +186,39 @@ describe('training public queries (bus contracts for identity, billing, scheduli
     expect(await ask(new ListProgressEntriesQuery({ ids: [mine, theirs] }))).toHaveLength(2);
     expect(await ask(new ListProgressEntriesQuery({ ids: [] }))).toEqual([]);
     expect(await ask(new ListProgressEntriesQuery({ ids: [mine] }), B)).toEqual([]);
+  });
+
+  it('HasPassedPracticalQuery: true only for a passed practical test attempt', async () => {
+    const attempt = (
+      studentId: string,
+      kind: 'theory' | 'practical',
+      result: 'passed' | 'failed',
+    ) =>
+      tenants.asSchool(A, (tx) =>
+        tx.insert(testAttempts).values({
+          id: newId(),
+          schoolId: A.schoolId,
+          studentId,
+          kind,
+          takenOn: '2026-09-01',
+          result,
+          notes: '',
+        }),
+      );
+    const passedPractical = await createStudent(tenants, A, { dateOfBirth: '2000-01-01' });
+    const theoryOnly = await createStudent(tenants, A, { dateOfBirth: '2000-01-01' });
+    const failedPractical = await createStudent(tenants, A, { dateOfBirth: '2000-01-01' });
+    const noAttempts = await createStudent(tenants, A, { dateOfBirth: '2000-01-01' });
+    await attempt(passedPractical, 'practical', 'failed');
+    await attempt(passedPractical, 'practical', 'passed');
+    await attempt(theoryOnly, 'theory', 'passed');
+    await attempt(failedPractical, 'practical', 'failed');
+
+    expect(await ask(new HasPassedPracticalQuery(passedPractical))).toBe(true);
+    expect(await ask(new HasPassedPracticalQuery(theoryOnly))).toBe(false);
+    expect(await ask(new HasPassedPracticalQuery(failedPractical))).toBe(false);
+    expect(await ask(new HasPassedPracticalQuery(noAttempts))).toBe(false);
+    expect(await ask(new HasPassedPracticalQuery(newId()))).toBe(false);
+    expect(await ask(new HasPassedPracticalQuery(passedPractical), B)).toBe(false);
   });
 });

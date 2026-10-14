@@ -64,5 +64,6 @@ export const PRICE_ITEM_FIXTURES = SCHOOLS.flatMap(
       currency: 'EUR',
       taxRateBp,
       sortOrder: index + 1,
+      showOnPublicPage: false,
     })),
 );

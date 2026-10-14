@@ -43,6 +43,7 @@ const priceItem = {
   taxRateBp: 1900,
   sortOrder: 2,
   active: true,
+  showOnPublicPage: true,
 } satisfies PriceItem;
 
 const premiumTheory = {
@@ -54,6 +55,7 @@ const premiumTheory = {
   entitlementKind: 'premium_theory',
   amountMinor: 2900,
   sortOrder: 3,
+  showOnPublicPage: false,
 } satisfies PriceItem;
 
 const shopItem = {
@@ -137,6 +139,7 @@ export const billingSamples = {
     taxRateBp: 1900,
     sortOrder: 5,
     active: true,
+    showOnPublicPage: false,
   } satisfies CreatePriceItemRequest,
   updatePriceItemRequest: { amountMinor: 62000, active: true } satisfies UpdatePriceItemRequest,
   shopQuery: { studentId: ids.student } satisfies ShopQuery,

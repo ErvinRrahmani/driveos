@@ -43,6 +43,7 @@ export {
   ListStudentBookingProfilesQuery,
   type StudentBookingProfileFilter,
 } from './queries/list-student-booking-profiles.query.js';
+export { HasPassedPracticalQuery } from './queries/has-passed-practical.query.js';
 export { ListLinkedStudentIdsQuery } from './queries/list-linked-student-ids.query.js';
 export {
   ListProgressEntriesQuery,

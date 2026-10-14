@@ -39,6 +39,7 @@ import { GetStudentRecipientsHandler } from './queries/get-student-recipients.ha
 import { GetStudentHandler } from './queries/get-student.handler.js';
 import { GetSyllabusHandler } from './queries/get-syllabus.handler.js';
 import { GetTestAttemptStatsHandler } from './queries/get-test-attempt-stats.handler.js';
+import { HasPassedPracticalHandler } from './queries/has-passed-practical.handler.js';
 import { ListLinkedStudentIdsHandler } from './queries/list-linked-student-ids.handler.js';
 import { ListProgressEntriesHandler } from './queries/list-progress-entries.handler.js';
 import { ListStudentNamesHandler } from './queries/list-student-names.handler.js';
@@ -95,6 +96,7 @@ import { ListStudentsHandler } from './queries/list-students.handler.js';
     GetSyllabusHandler,
     GetStudentProgressHandler,
     GetTestAttemptStatsHandler,
+    HasPassedPracticalHandler,
     ListPrivateNotesHandler,
     ExportStudentDataHandler,
     AnonymizeStudentHandler,

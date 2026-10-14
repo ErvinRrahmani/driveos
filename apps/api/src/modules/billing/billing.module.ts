@@ -10,6 +10,7 @@ import { GetBalanceHandler } from './queries/get-balance.handler.js';
 import { GetShopHandler } from './queries/get-shop.handler.js';
 import { ListLedgerEntriesHandler } from './queries/list-ledger-entries.handler.js';
 import { ListPriceItemsHandler } from './queries/list-price-items.handler.js';
+import { ListPublicPriceItemsHandler } from './queries/list-public-price-items.handler.js';
 import { ConsumeEntitlementHandler } from './commands/consume-entitlement.handler.js';
 import { GrantEntitlementHandler } from './commands/grant-entitlement.handler.js';
 import { HandlePaymentWebhookHandler } from './commands/handle-payment-webhook.handler.js';
@@ -66,6 +67,7 @@ import { ListSchoolPlatformStatementsHandler } from './queries/list-school-platf
     CreatePriceItemHandler,
     UpdatePriceItemHandler,
     ListPriceItemsHandler,
+    ListPublicPriceItemsHandler,
     GetShopHandler,
     GetBalanceHandler,
     ListLedgerEntriesHandler,

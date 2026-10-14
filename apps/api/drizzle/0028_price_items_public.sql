@@ -1,0 +1,1 @@
+ALTER TABLE "price_items" ADD COLUMN "show_on_public_page" boolean DEFAULT false NOT NULL;

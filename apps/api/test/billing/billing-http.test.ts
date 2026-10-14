@@ -99,6 +99,7 @@ describe('billing HTTP: price items, shop, balance, ledger, adjustments', () => 
         ...lessonItem,
         entitlementKind: null,
         active: true,
+        showOnPublicPage: false,
       });
 
       const patched = await http

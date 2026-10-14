@@ -53,7 +53,12 @@ const CREDITS_FOR_LESSONS = {
   path: ['creditMinutes'],
 };
 
-export const priceItemSchema = z.object({ id: z.uuid(), ...priceItemFields, active: z.boolean() });
+export const priceItemSchema = z.object({
+  id: z.uuid(),
+  ...priceItemFields,
+  active: z.boolean(),
+  showOnPublicPage: z.boolean(),
+});
 export type PriceItem = z.infer<typeof priceItemSchema>;
 
 export const listPriceItemsQuerySchema = pageQuerySchema.extend({
@@ -72,6 +77,7 @@ export const createPriceItemRequestSchema = z
     entitlementKind: priceItemFields.entitlementKind.default(null),
     sortOrder: priceItemFields.sortOrder.default(0),
     active: z.boolean().default(true),
+    showOnPublicPage: z.boolean().default(false),
   })
   .refine(creditsForLessons, CREDITS_FOR_LESSONS);
 export type CreatePriceItemRequest = z.infer<typeof createPriceItemRequestSchema>;
@@ -85,6 +91,7 @@ export const updatePriceItemRequestSchema = z
     taxRateBp: priceItemFields.taxRateBp,
     sortOrder: priceItemFields.sortOrder,
     active: z.boolean(),
+    showOnPublicPage: z.boolean(),
   })
   .partial()
   .refine(hasSomeField, { message: NO_FIELDS_MESSAGE });

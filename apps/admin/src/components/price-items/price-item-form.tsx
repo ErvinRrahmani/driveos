@@ -80,7 +80,12 @@ export function PriceItemForm({
           await update.mutateAsync({ params: { path: { id: priceItem.id } }, body: fields });
         } else {
           await create.mutateAsync({
-            body: { ...fields, kind: parsed.kind, currency: itemCurrency },
+            body: {
+              ...fields,
+              kind: parsed.kind,
+              currency: itemCurrency,
+              showOnPublicPage: false,
+            },
           });
         }
         await invalidate('/v1/price-items');

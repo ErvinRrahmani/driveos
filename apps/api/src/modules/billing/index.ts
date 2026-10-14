@@ -35,4 +35,8 @@ export { ListInvoicesQuery } from './queries/list-invoices.query.js';
 export { ListLedgerEntriesQuery } from './queries/list-ledger-entries.query.js';
 export { ListPlatformStatementsQuery } from './queries/list-platform-statements.query.js';
 export { ListPriceItemsQuery } from './queries/list-price-items.query.js';
+export {
+  ListPublicPriceItemsQuery,
+  type PublicPriceItem,
+} from './queries/list-public-price-items.query.js';
 export { ListSchoolPlatformStatementsQuery } from './queries/list-school-platform-statements.query.js';
