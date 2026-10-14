@@ -30,7 +30,13 @@ export const TEMPLATE_PAYLOADS = {
     studentId: z.uuid(),
     url: z.url(),
   }),
-  lead_captured: z.object({ leadId: z.uuid(), fullName: z.string(), licenceClass: z.string() }),
+  lead_captured: z.object({
+    leadId: z.uuid(),
+    fullName: z.string(),
+    licenceClass: z.string(),
+    /** A repeat enquiry on an open lead ("… enquired again"). */
+    repeated: z.boolean().optional(),
+  }),
   review_request: z.object({
     studentId: z.uuid(),
     url: z.url(),
@@ -170,7 +176,9 @@ export function templateVars(
     }
     case 'lead_captured': {
       const p = TEMPLATE_PAYLOADS.lead_captured.parse(raw);
-      return { ...base, name: p.fullName, licenceClass: p.licenceClass };
+      const vars = { ...base, name: p.fullName, licenceClass: p.licenceClass };
+      // i18next `context`: `<part>_repeated` for a repeat enquiry.
+      return p.repeated ? { ...vars, context: 'repeated' } : vars;
     }
     case 'review_request': {
       const p = TEMPLATE_PAYLOADS.review_request.parse(raw);

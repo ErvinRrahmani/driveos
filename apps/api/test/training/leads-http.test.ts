@@ -1,5 +1,11 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { LeadCaptured, LeadConverted, LeadStatusChanged } from '@driveos/shared';
+import { createHmac, randomUUID } from 'node:crypto';
+import {
+  LeadCaptured,
+  LeadConverted,
+  LeadEnquiryRepeated,
+  LeadStatusChanged,
+} from '@driveos/shared';
+import { ConfigService } from '@nestjs/config';
 import { StatusCodes } from 'http-status-codes';
 import type pg from 'pg';
 import request from 'supertest';
@@ -28,6 +34,7 @@ interface LeadRow {
   phone: string | null;
   email: string | null;
   message: string | null;
+  enquiries: { message: string | null; receivedAt: string; source: string }[];
   note: string | null;
   consent_text_version: string;
   consented_at: Date;
@@ -37,6 +44,7 @@ interface LeadRow {
   lost_at: Date | null;
   lost_reason: string | null;
   version: number;
+  updated_at: Date;
 }
 
 describe('training HTTP: leads', () => {
@@ -142,9 +150,18 @@ describe('training HTTP: leads', () => {
         phone,
         email: 'lena.lead@example.com',
         message: 'Can I start in November?',
+        enquiries: [
+          { message: 'Can I start in November?', receivedAt: expect.any(String), source: 'page' },
+        ],
         note: null,
         consent_text_version: 'lead-consent.v1',
-        request_ip_hash: createHash('sha256').update('203.0.113.77').digest('hex'),
+        // HMAC with the server pepper, not a plain SHA-256 of the IP.
+        request_ip_hash: createHmac(
+          'sha256',
+          kernel.app.get(ConfigService).getOrThrow<string>('AUTH_CODE_PEPPER'),
+        )
+          .update('203.0.113.77')
+          .digest('hex'),
         version: 1,
       });
       expect(row?.consented_at).toBeInstanceOf(Date);
@@ -181,20 +198,58 @@ describe('training HTTP: leads', () => {
       expect(await expectEvents(db, { type: LeadCaptured, aggregateId: res.body.id })).toEqual([]);
     });
 
-    it('dedupes by phone within 30 days and appends the message to the note', async () => {
+    it('adds a repeat enquiry to the lead, announces it and answers with an opaque id', async () => {
       const phone = uniquePhone();
       const first = await captured(leadBody({ phone, message: 'First' }));
-      const second = await captured(leadBody({ phone, message: 'Second' }));
-      const third = await captured(leadBody({ phone, message: 'Third' }));
+      // Staff wrote a note in between; a repeat enquiry must not touch it.
+      const noted = await http
+        .patch(`/v1/leads/${first}`)
+        .set(office.headers)
+        .send({ note: 'Staff only' });
+      expect(noted.status, JSON.stringify(noted.body)).toBe(StatusCodes.OK);
 
-      expect(second).toBe(first);
-      expect(third).toBe(first);
-      expect(await leadRow(first)).toMatchObject({
+      const second = await captured(
+        leadBody({ phone, fullName: ' lena  LEAD', message: 'Second' }),
+      );
+      const third = await captured(leadBody({ phone, message: undefined }));
+
+      // The public answer never echoes the stored lead's id (its UUIDv7 time would leak when the
+      // contact first enquired), and the throw-away ids belong to no lead.
+      expect(second).not.toBe(first);
+      expect(third).not.toBe(first);
+      expect(third).not.toBe(second);
+      const strays = await system.query(`select id from leads where id = any($1::uuid[])`, [
+        [second, third],
+      ]);
+      expect(strays.rows).toEqual([]);
+
+      const row = await leadRow(first);
+      expect(row).toMatchObject({
         message: 'First',
-        note: 'Second\n---\nThird',
-        version: 3,
+        note: 'Staff only',
+        version: 4,
+        enquiries: [
+          { message: 'First', receivedAt: expect.any(String), source: 'page' },
+          { message: 'Second', receivedAt: expect.any(String), source: 'page' },
+          { message: null, receivedAt: expect.any(String), source: 'page' },
+        ],
       });
+      const inSchool = await system.query(`select id from leads where phone = $1`, [phone]);
+      expect(inSchool.rows).toEqual([{ id: first }]);
+
       expect(await expectEvents(db, { type: LeadCaptured, aggregateId: first })).toHaveLength(1);
+      const repeats = await expectEvents(db, { type: LeadEnquiryRepeated, aggregateId: first });
+      expect(
+        repeats.map((event) => [event.aggregateVersion, event.actorUserId, event.payload]),
+      ).toEqual([
+        [
+          3,
+          null,
+          { leadId: first, source: 'page', message: 'Second', repeatedAt: expect.any(String) },
+        ],
+        [4, null, { leadId: first, source: 'page', message: null, repeatedAt: expect.any(String) }],
+      ]);
+      expect(row?.enquiries[1]?.receivedAt).toBe(repeats[0]?.payload.repeatedAt);
     });
 
     it('dedupes by email case-insensitively', async () => {
@@ -204,8 +259,31 @@ describe('training HTTP: leads', () => {
         leadBody({ phone: undefined, email: email.toUpperCase(), message: undefined }),
       );
 
-      expect(second).toBe(first);
+      expect(second).not.toBe(first);
       expect(await leadRow(first)).toMatchObject({ note: null, version: 2 });
+      expect((await leadRow(first))?.enquiries).toHaveLength(2);
+    });
+
+    it('creates a separate lead for another name on the same phone', async () => {
+      const phone = uniquePhone();
+      const lena = await captured(leadBody({ phone, fullName: 'Lena Lead' }));
+      const max = await captured(leadBody({ phone, fullName: 'Max Lead' }));
+
+      expect(max).not.toBe(lena);
+      expect(await leadRow(max)).toMatchObject({ full_name: 'Max Lead', version: 1 });
+      expect(await leadRow(lena)).toMatchObject({ version: 1 });
+      expect(await expectEvents(db, { type: LeadCaptured, aggregateId: max })).toHaveLength(1);
+    });
+
+    it('rejects an unknown consent text version', async () => {
+      for (const consentTextVersion of ['lead-consent.v0', 'manual', '']) {
+        const res = await capture(leadBody({ consentTextVersion }));
+        expect(res.status, consentTextVersion).toBe(StatusCodes.BAD_REQUEST);
+        expect(res.body.error.code).toBe('validation_error');
+        expect(res.body.error.details.issues).toEqual([
+          expect.objectContaining({ path: ['consentTextVersion'] }),
+        ]);
+      }
     });
 
     it('rejects a minor without guardian details', async () => {
@@ -276,6 +354,24 @@ describe('training HTTP: leads', () => {
       expect(event?.actorUserId).toBe(office.userId);
     });
 
+    it('accepts only a known consent text version or manual from staff', async () => {
+      const send = (consentTextVersion: string) =>
+        http.post('/v1/leads').set(office.headers).send({
+          fullName: 'Vera Version',
+          phone: uniquePhone(),
+          licenceClass: 'B',
+          isMinor: false,
+          consentTextVersion,
+        });
+      expect((await send('lead-consent.v1')).status).toBe(StatusCodes.CREATED);
+      expect((await send('manual')).status).toBe(StatusCodes.CREATED);
+      const unknown = await send('lead-consent.v9');
+      expect(unknown.status).toBe(StatusCodes.BAD_REQUEST);
+      expect(unknown.body.error.details.issues).toEqual([
+        expect.objectContaining({ path: ['consentTextVersion'] }),
+      ]);
+    });
+
     it('answers 403 feature_not_in_plan for a manual lead without the plan feature', async () => {
       const res = await http
         .post('/v1/leads')
@@ -295,7 +391,7 @@ describe('training HTTP: leads', () => {
       expect(create.status).toBe(StatusCodes.FORBIDDEN);
     });
 
-    it('lists leads newest first with status filter and cursor', async () => {
+    it('lists leads most recently changed first with status filter and cursor', async () => {
       const tag = randomUUID().slice(0, 8);
       const ids: string[] = [];
       for (const n of [1, 2, 3]) {
@@ -346,6 +442,65 @@ describe('training HTTP: leads', () => {
         .set(office.headers)
         .query({ q: tag, status: 'new' });
       expect(onlyNew.body.items.map((lead: { id: string }) => lead.id)).toEqual([ids[2], ids[0]]);
+
+      const bad = await http.get('/v1/leads').set(office.headers).query({ cursor: ids[0] });
+      expect(bad.status).toBe(StatusCodes.BAD_REQUEST);
+    });
+
+    it('brings a lead with a repeat enquiry back to the top of the inbox', async () => {
+      const tag = randomUUID().slice(0, 8);
+      const phone = uniquePhone();
+      const older = await captured(leadBody({ fullName: `Rita ${tag}`, phone }));
+      const newer = await captured(leadBody({ fullName: `Rolf ${tag}`, phone: uniquePhone() }));
+      const before = await http.get('/v1/leads').set(office.headers).query({ q: tag });
+      expect(before.body.items.map((lead: { id: string }) => lead.id)).toEqual([newer, older]);
+
+      await captured(leadBody({ fullName: `Rita ${tag}`, phone, message: 'Still interested' }));
+
+      const after = await http.get('/v1/leads').set(office.headers).query({ q: tag, limit: 1 });
+      expect(after.body.items.map((lead: { id: string }) => lead.id)).toEqual([older]);
+      expect(after.body.items[0].enquiries.map((e: { message: string }) => e.message)).toEqual([
+        'Can I start in November?',
+        'Still interested',
+      ]);
+      const rest = await http
+        .get('/v1/leads')
+        .set(office.headers)
+        .query({ q: tag, limit: 1, cursor: after.body.nextCursor });
+      expect(rest.status, JSON.stringify(rest.body)).toBe(StatusCodes.OK);
+      expect(rest.body.items.map((lead: { id: string }) => lead.id)).toEqual([newer]);
+      expect(rest.body.nextCursor).toBeNull();
+    });
+
+    it('answers 409 version_conflict when the lead changed since it was loaded', async () => {
+      const phone = uniquePhone();
+      const id = await captured(leadBody({ phone }));
+      // A repeat enquiry arrives while the office has version 1 open.
+      await captured(leadBody({ phone, message: 'Me again' }));
+
+      const stale = await http
+        .patch(`/v1/leads/${id}`)
+        .set(office.headers)
+        .send({ note: 'Typed on version 1', version: 1 });
+      expect(stale.status).toBe(StatusCodes.CONFLICT);
+      expect(stale.body.error).toMatchObject({
+        code: 'version_conflict',
+        details: { serverVersion: 2 },
+      });
+      expect(await leadRow(id)).toMatchObject({ note: null, version: 2 });
+
+      const fresh = await http
+        .patch(`/v1/leads/${id}`)
+        .set(office.headers)
+        .send({ note: 'Typed on version 2', version: 2 });
+      expect(fresh.status, JSON.stringify(fresh.body)).toBe(StatusCodes.OK);
+      expect(fresh.body).toEqual({ id, version: 3 });
+
+      const versionOnly = await http
+        .patch(`/v1/leads/${id}`)
+        .set(office.headers)
+        .send({ version: 3 });
+      expect(versionOnly.status).toBe(StatusCodes.BAD_REQUEST);
     });
 
     it('marks contacted and lost with a reason', async () => {
@@ -506,6 +661,14 @@ describe('training HTTP: leads', () => {
         .send({ status: 'lost', lostReason: 'Too late' });
       expect(patch.status).toBe(StatusCodes.CONFLICT);
       expect(patch.body.error.code).toBe('lead_already_converted');
+
+      // A converted lead never absorbs a new enquiry: it becomes a new lead.
+      const fresh = await captured(
+        leadBody({ fullName: 'Conny Convert', phone, licenceClass: 'BE', message: 'Class A too?' }),
+      );
+      expect(fresh).not.toBe(leadId);
+      expect(await leadRow(fresh)).toMatchObject({ status: 'new', version: 1 });
+      expect((await leadRow(leadId))?.enquiries).toHaveLength(1);
     });
 
     it('converting a minor lead links the guardian and invites them when asked', async () => {
@@ -577,6 +740,7 @@ describe('training HTTP: leads', () => {
           guardianContact: guardianEmail,
           consentTextVersion: 'lead-consent.v1',
           consentedAt: expect.any(String),
+          enquiries: [{ message: 'Weekends only', receivedAt: expect.any(String), source: 'page' }],
           note: null,
           createdAt: expect.any(String),
           convertedAt: expect.any(String),

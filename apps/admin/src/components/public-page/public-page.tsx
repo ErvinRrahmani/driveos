@@ -138,8 +138,11 @@ function Instructors({ instructors }: { instructors: PublicSchoolPage['instructo
   return (
     <Section title={t('publicPage.site.instructors')}>
       <ul className="flex flex-wrap gap-2">
-        {instructors.map((instructor) => (
-          <li key={instructor.membershipId} className="bg-muted rounded-full px-3 py-1 text-sm">
+        {instructors.map((instructor, index) => (
+          <li
+            key={`${index}-${instructor.name}`}
+            className="bg-muted rounded-full px-3 py-1 text-sm"
+          >
             {instructor.name}
           </li>
         ))}

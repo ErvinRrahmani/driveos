@@ -252,7 +252,7 @@ export const schoolSamples = {
         creditMinutes: 600,
       },
     ],
-    instructors: [{ membershipId: ids.instructorMembership, name: 'Ingo Instructor' }],
+    instructors: [{ name: 'Ingo Instructor' }],
     reviews: {
       count: 1,
       averageRatingTenths: 50,

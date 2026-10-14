@@ -408,8 +408,8 @@ describe('db:seed', () => {
   it('has a new page lead and a converted manual lead linked to Sofia', async () => {
     const leads = await system.query(
       `select school_id, status, source, full_name, phone, email, licence_class,
-              message is not null as has_message, is_minor, consent_text_version, student_id,
-              converted_at is not null as converted
+              message is not null as has_message, jsonb_array_length(enquiries) as enquiries,
+              is_minor, consent_text_version, student_id, converted_at is not null as converted
          from leads order by full_name`,
     );
     expect(leads.rows).toEqual([
@@ -422,6 +422,7 @@ describe('db:seed', () => {
         email: 'lea.lead@example.com',
         licence_class: 'B',
         has_message: true,
+        enquiries: 1,
         is_minor: false,
         consent_text_version: 'lead-consent.v1',
         student_id: null,
@@ -436,6 +437,7 @@ describe('db:seed', () => {
         email: 'sofia.silva@example.com',
         licence_class: 'B',
         has_message: false,
+        enquiries: 1,
         is_minor: false,
         consent_text_version: 'manual',
         student_id: SEED.students.sofia.id,

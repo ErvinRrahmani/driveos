@@ -4,13 +4,18 @@ import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../../kernel/config/env.js';
 import { CommandBus, type DomainEvent, QueryBus } from '../../../kernel/cqrs/index.js';
 import { type EventHandler, EventSubscriber } from '../../../kernel/subscribers/index.js';
+import { SchoolHasFeatureQuery } from '../../platform/index.js';
 import { GetPublicProfileQuery } from '../../school/index.js';
 import { GetStudentRecipientsQuery } from '../../training/index.js';
 import { SendNotificationCommand } from '../commands/send-notification.command.js';
 
 type Payload = EventPayload<typeof TestAttemptRecorded>;
 
-/** Asks a student who passed the practical test, once, to review the school (enrolment page §5.4). */
+/**
+ * Asks a student who passed the practical test, once, to review the school (enrolment page §5.4).
+ * Only at a school whose plan has `enrolment_page` (reviews are part of that feature); elsewhere
+ * the event is skipped silently.
+ */
 @Injectable()
 @EventSubscriber({ name: 'messaging.review-request', events: [TestAttemptRecorded] })
 export class ReviewRequestSubscriber implements EventHandler<Payload> {
@@ -22,6 +27,7 @@ export class ReviewRequestSubscriber implements EventHandler<Payload> {
 
   async handle({ payload }: DomainEvent<Payload>): Promise<void> {
     if (payload.kind !== 'practical' || payload.result !== 'passed') return;
+    if (!(await this.queryBus.execute(new SchoolHasFeatureQuery('enrolment_page')))) return;
     const { studentId } = payload;
     const recipients = await this.queryBus.execute(new GetStudentRecipientsQuery(studentId));
     if (!recipients?.studentUserId) return;

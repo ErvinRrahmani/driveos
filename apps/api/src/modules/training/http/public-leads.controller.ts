@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import {
   type CaptureLeadRequest,
   captureLeadRequestSchema,
@@ -7,9 +7,11 @@ import {
   publicSlugParamsSchema,
 } from '@driveos/shared';
 import { Body, Controller, Ip, Param, Post } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiTags } from '@nestjs/swagger';
 import { StatusCodes } from 'http-status-codes';
 import { Public } from '../../../kernel/auth/public.decorator.js';
+import type { Env } from '../../../kernel/config/env.js';
 import { CommandBus, QueryBus } from '../../../kernel/cqrs/index.js';
 import { newId } from '../../../kernel/db/columns.js';
 import { RateLimit } from '../../../kernel/http/rate-limit.decorator.js';
@@ -24,6 +26,10 @@ import { CaptureLeadCommand } from '../commands/capture-lead.command.js';
  * scope: the school is resolved in a school-less transaction (SECURITY DEFINER
  * `school_id_for_public_slug` + the `enrolment_page` feature, 404 `school_not_found` otherwise),
  * then the lead is written in that school's own transaction without a user.
+ *
+ * The answer's id is opaque: it is the new lead's id only when a lead was created. A repeat
+ * enquiry (added to an existing lead) and a honeypot hit get a fresh throw-away id, so an anonymous
+ * caller cannot learn whether, or when, a phone or email enquired before.
  */
 @ApiTags('leads')
 @Controller('public/schools')
@@ -32,6 +38,7 @@ export class PublicLeadsController {
     private readonly tenant: TenantContext,
     private readonly queryBus: QueryBus,
     private readonly commandBus: CommandBus,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   @Post(':slug/leads')
@@ -58,12 +65,17 @@ export class PublicLeadsController {
     const schoolId = await this.tenant.runInTenant({ schoolId: null, userId: null }, () =>
       this.queryBus.execute(new ResolvePublicSchoolQuery(slug)),
     );
-    const requestIpHash = ip ? createHash('sha256').update(ip).digest('hex') : null;
-    const { id } = await this.tenant.runInTenant({ schoolId, userId: null }, () =>
+    // Keyed with the server pepper: a leaked table cannot be matched against the small IPv4 space.
+    const requestIpHash = ip
+      ? createHmac('sha256', this.config.get('AUTH_CODE_PEPPER', { infer: true }))
+          .update(ip)
+          .digest('hex')
+      : null;
+    const { id, repeated } = await this.tenant.runInTenant({ schoolId, userId: null }, () =>
       this.commandBus.execute(
         new CaptureLeadCommand({ source: 'page', body: lead, requestIpHash }),
       ),
     );
-    return { id };
+    return { id: repeated ? newId() : id };
   }
 }

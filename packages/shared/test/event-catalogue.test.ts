@@ -32,6 +32,7 @@ const SPEC_EVENTS = {
     'ProgressRecorded',
     'TestAttemptRecorded',
     'LeadCaptured',
+    'LeadEnquiryRepeated',
     'LeadStatusChanged',
     'LeadConverted',
   ],

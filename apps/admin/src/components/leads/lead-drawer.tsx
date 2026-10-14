@@ -1,6 +1,6 @@
 import type { Lead } from '@driveos/shared';
 import { Link } from '@tanstack/react-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -18,6 +18,7 @@ import {
 import { useInvalidate } from '@/hooks/use-invalidate';
 import { useServices } from '@/hooks/use-services';
 import { useCan } from '@/hooks/use-session';
+import { apiErrorCode } from '@/lib/api-errors';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { optionalText } from '@/lib/form-schemas';
 import { ConvertLeadForm } from './convert-lead-form';
@@ -90,6 +91,13 @@ function LeadPanel({
         </DialogDescription>
       </DialogHeader>
       <LeadDetails lead={lead} />
+      <LeadEnquiries lead={lead} />
+      {lead.status === 'converted' && lead.note && (
+        <div className="grid gap-1 text-sm">
+          <h3 className="text-muted-foreground">{t('leads.notes')}</h3>
+          <p className="whitespace-pre-line">{lead.note}</p>
+        </div>
+      )}
       {lead.status === 'converted' && lead.studentId && (
         <Button asChild variant="outline">
           <Link to="/students/$id" params={{ id: lead.studentId }}>
@@ -108,7 +116,7 @@ function LeadPanel({
               </Button>
             )}
           </div>
-          <LeadNoteForm key={lead.version} lead={lead} />
+          <LeadNoteForm key={lead.id} lead={lead} />
         </>
       )}
       <FormDialog
@@ -157,11 +165,6 @@ function LeadDetails({ lead }: { lead: Lead }) {
         </Detail>
       )}
       <Detail label={t('leads.licenceClass')}>{lead.licenceClass}</Detail>
-      {lead.message && (
-        <Detail label={t('leads.message')}>
-          <span className="whitespace-pre-line">{lead.message}</span>
-        </Detail>
-      )}
       {lead.isMinor && (
         <Detail label={t('leads.guardian')}>
           {[lead.guardianName, lead.guardianContact].filter(Boolean).join(' · ')}
@@ -186,12 +189,39 @@ function LeadDetails({ lead }: { lead: Lead }) {
           )}
         </Detail>
       )}
-      {lead.status === 'converted' && lead.note && (
-        <Detail label={t('leads.notes')}>
-          <span className="whitespace-pre-line">{lead.note}</span>
-        </Detail>
-      )}
     </dl>
+  );
+}
+
+/** Every enquiry (the first and each repeat), oldest first; staff notes stay separate. */
+function LeadEnquiries({ lead }: { lead: Lead }) {
+  const { t } = useTranslation();
+  const headingId = useId();
+  if (lead.enquiries.length === 0) return null;
+  return (
+    <section className="grid gap-2 text-sm">
+      <h3 id={headingId} className="text-muted-foreground">
+        {t('leads.enquiries')}
+      </h3>
+      <ol aria-labelledby={headingId} className="grid gap-2">
+        {lead.enquiries.map((enquiry, index) => (
+          <li
+            key={`${index}-${enquiry.receivedAt}`}
+            className="bg-muted/50 grid gap-1 rounded-md p-3"
+          >
+            <span className="flex flex-wrap gap-2 text-xs">
+              <time dateTime={enquiry.receivedAt}>{formatDateTime(enquiry.receivedAt)}</time>
+              <LeadSourceLabel source={enquiry.source} />
+            </span>
+            {enquiry.message ? (
+              <span className="whitespace-pre-line">{enquiry.message}</span>
+            ) : (
+              <span className="text-muted-foreground italic">{t('leads.noMessage')}</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 
@@ -224,11 +254,21 @@ function MarkContactedButton({ leadId }: { leadId: string }) {
 
 const noteSchema = z.object({ note: optionalText(2000) });
 
+/**
+ * The staff note. It sends the lead version it last loaded, so a note typed while a repeat enquiry
+ * or a colleague changed the lead is refused (`409 version_conflict`): the drawer then reloads the
+ * lead and keeps the draft, and the next save uses the new version.
+ */
 function LeadNoteForm({ lead }: { lead: Lead }) {
   const { t } = useTranslation();
   const { api } = useServices();
   const invalidate = useInvalidate();
   const update = api.$api.useMutation('patch', '/v1/leads/{id}');
+  // The version of the lead as last loaded (it moves when the drawer reloads after a conflict).
+  const version = useRef(lead.version);
+  useEffect(() => {
+    version.current = lead.version;
+  }, [lead.version]);
   const form = useAppForm({
     defaultValues: { note: lead.note ?? '' } as z.input<typeof noteSchema>,
     validators: { onChange: noteSchema, onSubmit: noteSchema },
@@ -236,11 +276,16 @@ function LeadNoteForm({ lead }: { lead: Lead }) {
       try {
         await update.mutateAsync({
           params: { path: { id: lead.id } },
-          body: { note: noteSchema.parse(value).note },
+          body: { note: noteSchema.parse(value).note, version: version.current },
         });
         await invalidate('/v1/leads', '/v1/leads/{id}');
         toast.success(t('leads.noteSaved'));
       } catch (error) {
+        if (apiErrorCode(error) === 'version_conflict') {
+          await invalidate('/v1/leads', '/v1/leads/{id}');
+          toast.error(t('leads.versionConflict'));
+          return;
+        }
         reportSubmitError(form, error, t('errors.generic'));
       }
     },

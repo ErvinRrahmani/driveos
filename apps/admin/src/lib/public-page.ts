@@ -56,7 +56,10 @@ function present<T extends object>(entries: T): Partial<T> {
 }
 
 /** The `POST /v1/public/schools/{slug}/leads` body; guardian fields only for a minor. */
-export function enquiryBody(values: EnquiryValues, consentTextVersion: string): CaptureLeadRequest {
+export function enquiryBody(
+  values: EnquiryValues,
+  consentTextVersion: CaptureLeadRequest['consentTextVersion'],
+): CaptureLeadRequest {
   return {
     fullName: values.fullName.trim(),
     licenceClass: values.licenceClass,
@@ -95,7 +98,7 @@ function issueMessage(field: EnquiryField, code: string): string {
  */
 export function enquiryErrors(
   values: EnquiryValues,
-  consentTextVersion: string,
+  consentTextVersion: CaptureLeadRequest['consentTextVersion'],
 ): Partial<Record<EnquiryField, string>> | undefined {
   const errors: Partial<Record<EnquiryField, string>> = {};
   const parsed = captureLeadRequestSchema.safeParse(enquiryBody(values, consentTextVersion));

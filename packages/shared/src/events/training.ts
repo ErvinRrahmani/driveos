@@ -154,6 +154,18 @@ export const LeadCaptured = defineEvent({
   }),
 });
 
+/** A repeat enquiry was added to an open lead (same contact and name within 30 days). */
+export const LeadEnquiryRepeated = defineEvent({
+  type: 'LeadEnquiryRepeated',
+  version: 1,
+  schema: z.object({
+    leadId: z.uuid(),
+    source: leadSourceSchema,
+    message: z.string().nullable(),
+    repeatedAt: dateTimeSchema,
+  }),
+});
+
 export const LeadStatusChanged = defineEvent({
   type: 'LeadStatusChanged',
   version: 1,

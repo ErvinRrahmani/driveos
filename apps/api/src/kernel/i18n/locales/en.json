@@ -66,6 +66,7 @@
     "feature_not_in_plan": "This feature is not part of the school's plan.",
     "school_not_found": "This school page does not exist or is not published.",
     "lead_already_converted": "This lead has already been converted into a student.",
+    "lead_version_conflict": "Someone changed this lead in the meantime. Reload it and try again.",
     "review_exists": "You have already reviewed this school.",
     "review_not_available": "Reviews open after you pass the practical driving test."
   },
@@ -148,7 +149,11 @@
       "push_title": "New enquiry",
       "push_body": "{{name}} asked about a class {{licenceClass}} licence.",
       "email_subject": "New enquiry from {{name}}",
-      "email_text": "{{name}} sent an enquiry about a class {{licenceClass}} licence through the {{schoolName}} page. Open Leads in DriveOS to get in touch."
+      "email_text": "{{name}} sent an enquiry about a class {{licenceClass}} licence through the {{schoolName}} page. Open Leads in DriveOS to get in touch.",
+      "push_title_repeated": "Enquiry again",
+      "push_body_repeated": "{{name}} enquired again about a class {{licenceClass}} licence.",
+      "email_subject_repeated": "{{name}} enquired again",
+      "email_text_repeated": "{{name}} enquired again about a class {{licenceClass}} licence through {{schoolName}}. The new message is on the lead in DriveOS Leads."
     },
     "review_request": {
       "push_title": "Congratulations!",
@@ -223,7 +228,8 @@
       "documents": "Documents",
       "document": "{{date}} {{kind}}",
       "leads": "Enquiries",
-      "lead": "{{date}} {{name}}, phone: {{phone}}, email: {{email}}, guardian: {{guardian}} {{guardianContact}}, message: {{message}}, note: {{note}}, status: {{status}}, converted: {{converted}}"
+      "lead": "{{date}} {{name}}, phone: {{phone}}, email: {{email}}, guardian: {{guardian}} {{guardianContact}}, message: {{message}}, note: {{note}}, status: {{status}}, converted: {{converted}}",
+      "leadEnquiry": "  enquiry {{date}} ({{source}}): {{message}}"
     }
   }
 }

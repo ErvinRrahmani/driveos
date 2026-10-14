@@ -1,0 +1,2 @@
+ALTER TABLE "leads" ADD COLUMN "enquiries" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+CREATE INDEX "leads_updated_idx" ON "leads" USING btree ("school_id","updated_at" DESC NULLS LAST,"id" DESC NULLS LAST);

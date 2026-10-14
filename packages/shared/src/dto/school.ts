@@ -229,6 +229,10 @@ const ratingSchema = z.number().int().min(1).max(5);
 
 /** Version of the consent text the public enrolment form shows (i18n `publicPage.consent.v1`). */
 export const LEAD_CONSENT_TEXT_VERSION = 'lead-consent.v1';
+/** Every consent text version the public form may send; an unknown one is a `400`. */
+export const LEAD_CONSENT_TEXT_VERSIONS = [LEAD_CONSENT_TEXT_VERSION] as const;
+/** `consent_text_version` of a lead typed in by staff without a consent text (phone call, walk-in). */
+export const MANUAL_LEAD_CONSENT_VERSION = 'manual';
 
 export const publicSchoolPageSchema = z.object({
   slug: z.string(),
@@ -266,7 +270,8 @@ export const publicSchoolPageSchema = z.object({
       creditMinutes: minutesSchema.nullable(),
     }),
   ),
-  instructors: z.array(z.object({ membershipId: z.uuid(), name: z.string() })),
+  /** Names only: the public page never exposes internal ids. */
+  instructors: z.array(z.object({ name: z.string() })),
   reviews: z.object({
     count: z.number().int().nonnegative(),
     averageRatingTenths: z.number().int().min(0).max(50),
@@ -281,11 +286,15 @@ export const publicSchoolPageSchema = z.object({
     ),
   }),
   licenceClasses: z.array(licenceClassSchema),
-  consentTextVersion: z.string(),
+  /** The consent text the form must show and send back (`publicPage.consent.<v>` in the app). */
+  consentTextVersion: z.enum(LEAD_CONSENT_TEXT_VERSIONS),
 });
 export type PublicSchoolPage = z.infer<typeof publicSchoolPageSchema>;
 
-export const publicSlugParamsSchema = z.object({ slug: z.string().trim().min(3).max(40) });
+/** Slugs are stored lower-case, so `/s/Fahrschule-Spree` resolves too. */
+export const publicSlugParamsSchema = z.object({
+  slug: z.string().trim().toLowerCase().min(3).max(40),
+});
 export type PublicSlugParams = z.infer<typeof publicSlugParamsSchema>;
 
 export const reviewSchema = z.object({

@@ -103,10 +103,7 @@ export class GetPublicSchoolPageHandler implements IQueryHandler<GetPublicSchool
       ),
     );
     return active
-      .map((membership) => ({
-        membershipId: membership.id,
-        name: names.get(membership.userId) ?? '',
-      }))
+      .map((membership) => ({ name: names.get(membership.userId) ?? '' }))
       .filter((instructor) => instructor.name !== '')
       .sort((a, b) => a.name.localeCompare(b.name));
   }

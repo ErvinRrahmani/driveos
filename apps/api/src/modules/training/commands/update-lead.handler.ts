@@ -7,7 +7,7 @@ import {
 } from '../../../kernel/cqrs/index.js';
 import { LeadStream } from '../events/lead-stream.js';
 import { LeadRecords, type NewLeadRow } from '../infra/lead-records.js';
-import { leadAlreadyConverted } from '../infra/training-errors.js';
+import { leadAlreadyConverted, leadVersionConflict } from '../infra/training-errors.js';
 import { UpdateLeadCommand } from './update-lead.command.js';
 
 @CommandHandler(UpdateLeadCommand)
@@ -19,6 +19,10 @@ export class UpdateLeadHandler implements ICommandHandler<UpdateLeadCommand, Com
 
   async execute({ leadId, body }: UpdateLeadCommand): Promise<CommandResult> {
     const lead = await this.leads.lock(leadId);
+    // A repeat enquiry or another staff member may have changed the lead since it was loaded.
+    if (body.version !== undefined && body.version !== lead.version) {
+      throw leadVersionConflict(lead.version);
+    }
     if (body.status !== undefined && lead.status === 'converted') throw leadAlreadyConverted();
     const now = new Date();
     const stream = new LeadStream(leadId, lead.version);

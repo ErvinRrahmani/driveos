@@ -55,9 +55,22 @@ export const LEAD_FIXTURES: { schoolId: string; lead: Lead }[] = [
       phone: '+4915550000020',
       email: 'lena.lead@example.com',
       message: 'Can I start in November?',
+      enquiries: [
+        {
+          message: 'Can I start in November?',
+          receivedAt: '2026-10-06T09:00:00.000Z',
+          source: 'page',
+        },
+        {
+          message: 'Do you also have evening lessons?',
+          receivedAt: '2026-10-08T18:30:00.000Z',
+          source: 'page',
+        },
+      ],
       consentedAt: '2026-10-06T09:00:00.000Z',
+      version: 2,
       createdAt: '2026-10-06T09:00:00.000Z',
-      updatedAt: '2026-10-06T09:00:00.000Z',
+      updatedAt: '2026-10-08T18:30:00.000Z',
     },
   },
   {
@@ -70,6 +83,13 @@ export const LEAD_FIXTURES: { schoolId: string; lead: Lead }[] = [
       phone: '+4915550000007',
       email: null,
       message: 'Do you teach automatic?',
+      enquiries: [
+        {
+          message: 'Do you teach automatic?',
+          receivedAt: '2026-09-01T10:00:00.000Z',
+          source: 'page',
+        },
+      ],
       note: 'Booked a trial lesson.',
       studentId: SAM,
       consentedAt: '2026-09-01T10:00:00.000Z',

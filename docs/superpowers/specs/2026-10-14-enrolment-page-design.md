@@ -96,11 +96,12 @@ Student anonymization (`DELETE /v1/students/{id}`) must remove the review: the s
 | `guardian_name`, `guardian_contact` | text | required when `is_minor` (CHECK) |
 | `consent_text_version` | text not null | the consent text shown on the form (i18n key version, e.g. `lead-consent.v1`) |
 | `consented_at` | timestamptz not null | |
-| `note` | text | staff notes, ≤ 2000 |
+| `enquiries` | jsonb | `[{ message, receivedAt, source }]`, oldest first: the first enquiry and every repeat (final fix wave, migration 0035) |
+| `note` | text | staff notes, ≤ 2000; enquiries never write here |
 | `student_id` | uuid FK students | set on conversion |
 | `converted_at`, `lost_at` | timestamptz | |
 | `lost_reason` | text | ≤ 200 |
-| `request_ip_hash` | text | sha256 of the submitting IP, kept 30 days for abuse review, then nulled by the purge job |
+| `request_ip_hash` | text | HMAC-SHA256 (server pepper) of the submitting IP, kept 30 days for abuse review, then nulled by the purge job |
 | `version` | integer | |
 | timestamps | | |
 
@@ -141,7 +142,7 @@ The controller resolves the school in a school-less tenant transaction with `sch
 
 Request: `{ fullName, phone?, email?, licenceClass, message?, isMinor, guardianName?, guardianContact?, consentTextVersion, website?: '' }`. `website` is a honeypot: a non-empty value returns `201 { id }` with a throw-away id, without writing anything. The controller resolves the school as in §5.1 and checks the plan feature; a school without `enrolment_page` returns 404 like an unpublished page.
 
-Domain rule `dedupeLead` (pure): if a lead with the same phone or email exists in the last 30 days and is not `lost`, the command returns that lead's id and appends the new message to `note` instead of creating a second row. Response: `201 { id }` either way.
+Domain rule `findDuplicate` (pure; final fix wave): if a `new` or `contacted` lead with the same phone or email **and** the same normalized name exists in the last 30 days, the enquiry is appended to that lead's `enquiries`, its version and `updated_at` move, and `LeadEnquiryRepeated` is emitted (staff get `lead_captured` "… enquired again"; reporting does not count it); otherwise a new lead is created. The staff `note` is never written by an enquiry. Response: `201 { id }` either way, and the id is opaque (a throw-away id on a repeat, like the honeypot), see SPEC D12.
 
 Events: `LeadCaptured` v1 `{ leadId, source, licenceClass, isMinor, fullName, capturedAt }`.
 
@@ -163,7 +164,7 @@ The `Idempotency-Key` makes a double click safe.
 
 `ModerateReviewCommand` sets `approved` or `hidden`; appends `ReviewModerated` v1. Only approved reviews are public. The school is told on the moderation screen that hiding negative reviews is their choice but DriveOS asks every passing student, never only happy ones.
 
-Review request: messaging subscribes to `TestAttemptRecorded`; when `kind = practical` and `result = pass` it sends `review_request` to the student (push, email when no device; skipped when the student has no login) with the app deep link `<MOBILE_DEEP_LINK_SCHEME>student/review` (`driveos://` by default). When the school set an `external_review_url`, the email adds it as an extra line; the push and the app's deep link carry no external URL, so the app never opens a link it cannot verify. Sent at most once per student (`dedupe_key = review_request:<studentId>` on `notifications`).
+Review request: messaging subscribes to `TestAttemptRecorded`; when `kind = practical` and `result = pass` it sends `review_request` to the student (push, email when no device; skipped when the student has no login) with the app deep link `<MOBILE_DEEP_LINK_SCHEME>student/review` (`driveos://` by default). When the school set an `external_review_url`, the email adds it as an extra line; the push and the app's deep link carry no external URL, so the app never opens a link it cannot verify. Sent at most once per student (`dedupe_key = review_request:<studentId>` on `notifications`), and only at a school whose plan has `enrolment_page` (final fix wave; the mobile Account entry is hidden the same way, `POST /v1/reviews` stays ungated, SPEC D13).
 
 ### 5.5 Reporting
 

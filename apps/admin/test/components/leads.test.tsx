@@ -23,6 +23,15 @@ function recordPosts(pathname: RegExp): Sent[] {
   return sent;
 }
 
+function recordPatches(pathname: RegExp): Promise<unknown>[] {
+  const sent: Promise<unknown>[] = [];
+  server.events.on('request:start', ({ request }) => {
+    if (request.method !== 'PATCH' || !pathname.test(new URL(request.url).pathname)) return;
+    sent.push(request.clone().json());
+  });
+  return sent;
+}
+
 const navLinks = async () => {
   const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
   return within(nav)
@@ -91,6 +100,48 @@ describe('leads inbox', () => {
     await userEvent.click(within(drawer).getByRole('button', { name: 'Mark as contacted' }));
     await waitFor(() => expect(mock.store.leads.get(LENA)?.value.status).toBe('contacted'));
     expect(await within(drawer).findByText('Contacted')).toBeTruthy();
+  });
+
+  it('lists every enquiry with its time and source above the staff notes', async () => {
+    renderApp({ path: `/leads?lead=${LENA}`, as: 'office' });
+    const drawer = await screen.findByRole('dialog', { name: 'Lena Lead' });
+    const list = within(drawer).getByRole('list', { name: 'Enquiries' });
+    const items = within(list).getAllByRole('listitem');
+    expect(items.map((item) => item.textContent)).toEqual([
+      expect.stringContaining('Can I start in November?'),
+      expect.stringContaining('Do you also have evening lessons?'),
+    ]);
+    expect(within(items[0] as HTMLElement).getByText('Public page')).toBeTruthy();
+    expect(within(items[1] as HTMLElement).getByText(/2026/)).toBeTruthy();
+    const notes = within(drawer).getByLabelText('Notes');
+    expect(list.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('saves the note with the version it loaded and keeps the draft on a conflict', async () => {
+    const patches = recordPatches(/\/v1\/leads\/[^/]+$/);
+    const { mock } = renderApp({ path: `/leads?lead=${LENA}`, as: 'office' });
+    const drawer = await screen.findByRole('dialog', { name: 'Lena Lead' });
+    const record = mock.store.leads.get(LENA);
+    if (!record) throw new Error('Lena is not in the mock');
+    // A repeat enquiry arrives after the drawer loaded version 2.
+    record.version += 1;
+    record.value = { ...record.value, version: record.version };
+    await userEvent.type(within(drawer).getByLabelText('Notes'), 'Wants Tuesdays.');
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Save note' }));
+    expect(
+      await screen.findByText('This lead changed in the meantime. Check it and save again.'),
+    ).toBeTruthy();
+    expect(await patches[0]).toEqual({ note: 'Wants Tuesdays.', version: 2 });
+    expect(mock.store.leads.get(LENA)?.value.note).toBeNull();
+    expect((within(drawer).getByLabelText('Notes') as HTMLTextAreaElement).value).toBe(
+      'Wants Tuesdays.',
+    );
+
+    // The drawer reloaded the lead before telling; saving again uses the new version.
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Save note' }));
+    await waitFor(() => expect(mock.store.leads.get(LENA)?.value.note).toBe('Wants Tuesdays.'));
+    expect(patches).toHaveLength(2);
+    expect(await patches[1]).toEqual({ note: 'Wants Tuesdays.', version: 3 });
   });
 
   it('marks a lead as lost with a reason', async () => {

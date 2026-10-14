@@ -1,3 +1,4 @@
+import type { MeResponse } from '@driveos/shared';
 import { describe, expect, it } from 'vitest';
 import { NETWORK_ERROR, type ApiFailure } from '../../src/lib/api-errors';
 import {
@@ -5,6 +6,7 @@ import {
   reviewOutcome,
   reviewSubmission,
   reviewTextRemaining,
+  showsReviewEntry,
 } from '../../src/lib/review-flow';
 
 const failure = (code: string): ApiFailure => ({ ok: false, code, message: null });
@@ -75,5 +77,29 @@ describe('reviewOutcome', () => {
     expect(reviewOutcome(failure('not_found'))).toBe('error');
     expect(reviewOutcome(failure('validation_error'))).toBe('error');
     expect(reviewOutcome(failure(NETWORK_ERROR))).toBe('error');
+  });
+});
+
+describe('showsReviewEntry', () => {
+  const me = (features: string[] | null) =>
+    ({
+      active:
+        features === null
+          ? null
+          : {
+              membershipId: '0192f000-0000-7000-8000-000000000001',
+              schoolId: '0192f000-0000-7000-8000-000000000002',
+              roles: ['student'],
+              grants: [],
+              studentId: '0192f000-0000-7000-8000-000000000003',
+              features,
+            },
+    }) satisfies Pick<MeResponse, 'active'>;
+
+  it('offers "Rate your school" only when the school has the enrolment page', () => {
+    expect(showsReviewEntry(me(['enrolment_page']))).toBe(true);
+    expect(showsReviewEntry(me([]))).toBe(false);
+    expect(showsReviewEntry(me(null))).toBe(false);
+    expect(showsReviewEntry(undefined)).toBe(false);
   });
 });

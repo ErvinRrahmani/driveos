@@ -1,9 +1,20 @@
-import type { SubmitReviewRequest } from '@driveos/shared';
+import type { MeResponse, SubmitReviewRequest } from '@driveos/shared';
 import type { AppServices } from './api';
 import type { ApiFailure } from './api-errors';
 import { failure, type FlowResult, send } from './flow';
 
 export const REVIEW_TEXT_MAX = 600;
+
+/** Reviews belong to the `enrolment_page` plan feature (the review request is gated the same way). */
+const REVIEW_FEATURE = 'enrolment_page';
+
+/**
+ * Whether the account screen offers "Rate your school": only when the active school's plan has the
+ * enrolment page. `POST /v1/reviews` itself stays open for a school that asks directly.
+ */
+export function showsReviewEntry(me: Pick<MeResponse, 'active'> | undefined): boolean {
+  return me?.active?.features.includes(REVIEW_FEATURE) ?? false;
+}
 export const REVIEW_RATINGS = [1, 2, 3, 4, 5] as const;
 
 export interface ReviewDraft {

@@ -117,15 +117,16 @@ idempotent by event id (`event_deliveries`); projections also skip stale `aggreg
 | school | `SchoolCreated`, `SchoolSettingsChanged`, `BranchChanged`, `VehicleChanged`, `PaymentAccountConnected`, `ReviewSubmitted`, `ReviewModerated` | `school.review-anonymizer` ← `StudentAnonymized` |
 | platform | `SupportSessionStarted`, `SupportSessionEnded`, `SubscriptionChanged` | — |
 | scheduling | `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `AvailabilityChanged`, `TimeOffAdded`, `WaitingListJoined`, `SlotOfferCreated`, `SlotOfferAccepted`, `SlotOfferExpired` | `scheduling.change-feed` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `VehicleChanged`, `AvailabilityChanged`, `TimeOffAdded`; `scheduling.lesson-reminders` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`; `scheduling.slot-offers-from-cancellations` ← `LessonCancelled` |
-| training | `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `GuardianLinked`, `GuardianConsentGiven`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded`, `LeadCaptured`, `LeadStatusChanged`, `LeadConverted` | `training.membership-student-link` ← `MembershipCreated`, `MembershipRolesChanged`; `training.student-list` ← `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded`, `LedgerEntryRecorded`, `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow` |
+| training | `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `GuardianLinked`, `GuardianConsentGiven`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded`, `LeadCaptured`, `LeadEnquiryRepeated`, `LeadStatusChanged`, `LeadConverted` | `training.membership-student-link` ← `MembershipCreated`, `MembershipRolesChanged`; `training.student-list` ← `StudentCreated`, `StudentEnrolled`, `StudentArchived`, `StudentAnonymized`, `InstructorAssigned`, `InstructorUnassigned`, `ProgressRecorded`, `TestAttemptRecorded`, `LedgerEntryRecorded`, `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow` |
 | theory | `QuestionPackPublished`, `TheorySessionFinished` | — |
 | billing | `PaymentSucceeded`, `PaymentFailed`, `CashPaymentRecorded`, `RefundIssued`, `LedgerEntryRecorded`, `EntitlementGranted`, `InvoiceIssued`, `CreditNoteIssued`, `PlatformChargeCreated`, `PlatformStatementIssued` | `billing.student-fee` ← `StudentEnrolled`; `billing.student-fee-reversal` ← `StudentArchived` |
 | documents | `DocumentUploaded`, `ContractCreated`, `ContractSigned`, `ContractCompleted` | `documents.student-anonymized` ← `StudentAnonymized` |
-| messaging | `MessageSent`, `DeviceTokenInvalidated` | `messaging.conversations` ← `StudentCreated`, `InstructorAssigned`; `messaging.invitation-notifications` ← `InvitationCreated`; `messaging.lesson-notifications` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`; `messaging.billing-notifications` ← `InvoiceIssued`, `PlatformStatementIssued`; `messaging.contract-notifications` ← `ContractCreated`; `messaging.chat-notifications` ← `MessageSent`; `messaging.slot-offer-notifications` ← `SlotOfferCreated`; `messaging.growth-report-notifications` ← `GrowthReportGenerated`; `messaging.guardian-consent-notifications` ← `GuardianLinked`; `messaging.lead-notifications` ← `LeadCaptured`; `messaging.review-request` ← `TestAttemptRecorded` |
+| messaging | `MessageSent`, `DeviceTokenInvalidated` | `messaging.conversations` ← `StudentCreated`, `InstructorAssigned`; `messaging.invitation-notifications` ← `InvitationCreated`; `messaging.lesson-notifications` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`; `messaging.billing-notifications` ← `InvoiceIssued`, `PlatformStatementIssued`; `messaging.contract-notifications` ← `ContractCreated`; `messaging.chat-notifications` ← `MessageSent`; `messaging.slot-offer-notifications` ← `SlotOfferCreated`; `messaging.growth-report-notifications` ← `GrowthReportGenerated`; `messaging.guardian-consent-notifications` ← `GuardianLinked`; `messaging.lead-notifications` ← `LeadCaptured`, `LeadEnquiryRepeated`; `messaging.review-request` ← `TestAttemptRecorded` |
 | reporting | `GrowthReportGenerated` | `reporting.school-metrics` ← `LessonBooked`, `LessonMoved`, `LessonCancelled`, `LessonCompleted`, `LessonMarkedNoShow`, `SlotOfferCreated`, `SlotOfferAccepted`, `SlotOfferExpired`, `PaymentSucceeded`, `CashPaymentRecorded`, `RefundIssued`, `TestAttemptRecorded`, `AvailabilityChanged`, `TimeOffAdded`, `LeadCaptured`, `LeadConverted` |
 
 Differences from the SPEC §3.6 table: messaging also emits `DeviceTokenInvalidated` (consumed by
-identity); training's `GuardianLinked` (consent request), `LeadCaptured` (staff alert) and
+identity); training's `GuardianLinked` (consent request), `LeadCaptured` and
+`LeadEnquiryRepeated` (staff alert) and
 `TestAttemptRecorded` (review request) are consumed by messaging; scheduling does
 not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `TheorySessionFinished`,
 `QuestionPackPublished`, `PaymentFailed`, `EntitlementGranted`, `CreditNoteIssued`,
@@ -199,7 +200,8 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   public lead route reuses it), `GetPublicSchoolPageQuery → PublicSchoolPage` (run in
   `runInTenant({ schoolId, userId: null })` after resolving; composes the profile, school, branches
   with opening hours (own hours, else school-wide), billing `ListPublicPriceItemsQuery` when
-  `showPrices`, active instructors' names via `MembershipDirectory` when `showInstructors`, the
+  `showPrices`, active instructors' names (`{ name }` only, no membership ids) via
+  `MembershipDirectory` when `showInstructors`, the
   newest 20 approved reviews with count and average (`averageRatingTenths`), the distinct licence
   classes of active lesson types via scheduling `ListLessonTypesQuery` (`['B']` when there are
   none), and
@@ -225,7 +227,8 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   false without a subscription; `PLAN_FEATURES` = `enrolment_page`), `ListAuditLogQuery`. The plan
   DTO and the create/update plan requests carry `features` (`text[]`, default empty).
 - Emits: `SupportSessionStarted`, `SupportSessionEnded`, `SubscriptionChanged`.
-- Worker: `PlatformWorkerModule` registers `GetCurrentSubscriptionQuery` in the worker.
+- Worker: `PlatformWorkerModule` registers `GetCurrentSubscriptionQuery` and
+  `SchoolHasFeatureQuery` in the worker (messaging's review request checks the plan).
 - Uses: theory `ImportQuestionPackCommand`, `PublishQuestionPackCommand` (the
   `/v1/platform/question-packs/*` routes live in `PlatformController`).
 
@@ -542,14 +545,23 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
 - Private notes never leave training through student or parent responses; staff read them only via
   `GET /v1/students/{id}/private-notes` (audited `private_notes.read`).
 - Leads (enrolment page design §4.4, §5.2, §5.3; table `leads`, RLS `leads_tenant`, migrations
-  0031/0032): `CaptureLeadCommand({ source: 'page' | 'manual', body, requestIpHash })` →
-  `{ id, version }` (the event actor is the tenant scope's user, null on the public form; `email`
-  lower-cased; a repeat enquiry with the same phone or lower-cased email within 30 days whose lead
-  is not `lost` returns that lead's id, appends the message to `note` (`\n---\n`) and bumps
-  `version` without an event (`domain/leads.ts` `findDuplicate`); `manual` needs platform
+  0031/0032, `enquiries jsonb` + index `(school_id, updated_at desc, id desc)` in 0035):
+  `CaptureLeadCommand({ source: 'page' | 'manual', body, requestIpHash })` →
+  `{ id, version, repeated }` (the event actor is the tenant scope's user, null on the public form;
+  `email` lower-cased; the first enquiry `{ message, receivedAt, source }` is stored in
+  `enquiries` (and its message in `message`); a repeat enquiry — same phone or lower-cased email
+  and the same normalized name (trim, collapse whitespace, case-insensitive) within 30 days, lead
+  `new` or `contacted` (`domain/leads.ts` `findDuplicate`) — appends its enquiry to `enquiries`
+  (first + newest up to `LEAD_ENQUIRY_MAX` = 50, `appendEnquiry`), bumps `version`, sets
+  `updated_at` and emits `LeadEnquiryRepeated`, returning `repeated: true`; it never touches the
+  staff-only `note`; a `converted`/`lost` lead or another name creates a new lead; `manual` needs platform
   `SchoolHasFeatureQuery('enrolment_page')` → else `403 feature_not_in_plan` and stores
-  `consent_text_version = 'manual'` when none is given), `UpdateLeadCommand(actor, leadId,
-  { status?: contacted | lost, note?, lostReason? })` → `{ id, version }` (`LeadStatusChanged` only
+  `consent_text_version = 'manual'` when none is given; `consentTextVersion` is
+  `LEAD_CONSENT_TEXT_VERSIONS` (`lead-consent.v1`) on both routes plus `manual` on the staff route,
+  else `400 validation_error`), `UpdateLeadCommand(actor, leadId,
+  { status?: contacted | lost, note?, lostReason?, version? })` → `{ id, version }` (a given
+  `version` that is not the lead's → `409 version_conflict` with `details.serverVersion`; the admin
+  note form sends the version it loaded; `LeadStatusChanged` only
   when the status changes; a status change on a converted lead → `409 lead_already_converted`;
   `contacted` clears `lost_at`/`lost_reason`), `ConvertLeadCommand(actor, leadId, body)` →
   `{ id, version, studentId, invitationId, parentInvitationId }` (locks the lead; 404 / `409
@@ -560,23 +572,28 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
   invitation; all in the request transaction); the internal purge command (`now` → `{ deleted,
   ipHashesCleared }`) deletes `lost`/`converted` leads whose `coalesce(converted_at, lost_at,
   created_at)` is over 12 months old and nulls `request_ip_hash` after 30 days (no events; worker
-  only). Queries: `ListLeadsQuery(params)` (`{ status?, q?, cursor?, limit }`, newest first, cursor
-  = lead id, `q` matches name, phone or email), `GetLeadQuery(id)` (404 when not in this school).
+  only). Queries: `ListLeadsQuery(params)` (`{ status?, q?, cursor?, limit }`, `updated_at desc,
+  id desc` so a repeat enquiry resurfaces its lead, cursor = `<updated_at with microseconds>_<id>`,
+  `q` matches name, phone or email), `GetLeadQuery(id)` (404 when not in this school; also
+  registered in the worker for the lead notifications). `Lead` carries `enquiries` (oldest first).
   Routes: `GET /v1/leads`, `GET /v1/leads/{id}` (`leads.read`), `POST /v1/leads`,
   `PATCH /v1/leads/{id}`, `POST /v1/leads/{id}/convert` (`leads.manage`; convert needs
   `Idempotency-Key`), all in `LeadsController`. Public: `POST /v1/public/schools/{slug}/leads`
   (`PublicLeadsController`, `@Public()`, rate limit `leads` 10 per IP per hour): non-empty
   honeypot `website` → `201 { id: <random> }` with no write; else school `ResolvePublicSchoolQuery`
   in a school-less scope (404 `school_not_found`), then `CaptureLeadCommand` in
-  `runInTenant({ schoolId, userId: null })` with `requestIpHash` = sha256 hex of `req.ip`; answers
-  `201 { id }` only. Emits `LeadCaptured` v1 `{ leadId, source, licenceClass, isMinor, fullName,
-  capturedAt }`, `LeadStatusChanged` v1 `{ leadId, status, changedAt }`, `LeadConverted` v1
-  `{ leadId, studentId, convertedAt }` (aggregate `lead`, aggregate version = `leads.version`, so
-  note-only changes and repeat enquiries leave gaps). Worker job `training.lead-purge`
+  `runInTenant({ schoolId, userId: null })` with `requestIpHash` = HMAC-SHA256 hex of `req.ip`
+  keyed with `AUTH_CODE_PEPPER`; answers `201 { id }` only, and the id is opaque: the new lead's id
+  when a lead was created, a fresh throw-away id on a repeat enquiry (never the stored lead's id,
+  whose UUIDv7 time would reveal an earlier enquiry). The slug param is lower-cased. Emits
+  `LeadCaptured` v1 `{ leadId, source, licenceClass, isMinor, fullName, capturedAt }`,
+  `LeadEnquiryRepeated` v1 `{ leadId, source, message | null, repeatedAt }`, `LeadStatusChanged`
+  v1 `{ leadId, status, changedAt }`, `LeadConverted` v1 `{ leadId, studentId, convertedAt }`
+  (aggregate `lead`, aggregate version = `leads.version`, so note-only changes leave gaps). Worker job `training.lead-purge`
   (`infra/lead-purge.job.ts` `LeadPurgeJob`, `15 3 * * *`, runs the purge command per school via
   `PerSchoolJobs`). Staff reads of a lead are not audited (design §8). Privacy: the student data
   export (`ExportStudentDataCommand`) lists the student's converted lead(s) under `bundle.leads`
-  (name, contacts, guardian, message, note, status, dates), and `AnonymizeStudentCommand` deletes
+  (name, contacts, guardian, message, enquiries, note, status, dates), and `AnonymizeStudentCommand` deletes
   them in the same transaction.
 
 ### theory
@@ -758,10 +775,11 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
     currency }`, `growth_report_generated { reportId, month }`, `message_received { conversationId,
     senderName, preview }`, `slot_offer_created { offerId, start, expiresAt }`,
     `guardian_consent_requested { guardianLinkId, studentId, url }`, `lead_captured { leadId,
-    fullName, licenceClass }`, `review_request { studentId, url, externalReviewUrl | null }`. Texts
+    fullName, licenceClass, repeated? }`, `review_request { studentId, url, externalReviewUrl | null }`. Texts
     live in i18n `notifications.<template>.{push_title,push_body,sms,email_subject,email_text}`;
     `review_request` with an `externalReviewUrl` renders `email_text_external_review` (i18next
-    context `external_review`; the push keeps the short base text).
+    context `external_review`; the push keeps the short base text); `lead_captured` with
+    `repeated: true` renders the `*_repeated` parts (context `repeated`, "… enquired again").
   - Default channels: invitation sms + email (by contact); lesson templates, lead captured and review
     request push, or email when the user has no device; invoice, contract, statement, growth report,
     slot offer and guardian consent push + email; chat push only.
@@ -804,9 +822,12 @@ not subscribe to `InstructorUnassigned` beyond `change_feed`; nothing consumes `
     `template`, `guardianLinkId` and `studentId`.
   - `messaging.lead-notifications`: `LeadCaptured` → `lead_captured` to every active owner and
     office member (the `leads.read` roles, de-duplicated) except the event's actor (a staff member
-    entering a manual lead), deferred. The push `data` carries `template` and `leadId`.
+    entering a manual lead), deferred. `LeadEnquiryRepeated` → the same recipients get
+    `lead_captured` with `repeated: true` (name and licence class read through training
+    `GetLeadQuery`; skipped when the lead is gone). The push `data` carries `template` and `leadId`.
   - `messaging.review-request`: `TestAttemptRecorded` with `kind = practical` and `result = passed`
-    → `review_request` to the student's own user only (skipped when the student has no login),
+    at a school whose plan has `enrolment_page` (platform `SchoolHasFeatureQuery`; skipped silently
+    otherwise) → `review_request` to the student's own user only (skipped when the student has no login),
     deferred, `url` `<MOBILE_DEEP_LINK_SCHEME>student/review`, `externalReviewUrl` from school
     `GetPublicProfileQuery` (null without a profile), `dedupeKey` `review_request:<studentId>` so a
     second pass sends nothing. The push `data` carries `template` and `studentId`.

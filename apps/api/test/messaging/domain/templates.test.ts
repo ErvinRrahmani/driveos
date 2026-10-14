@@ -32,6 +32,20 @@ describe('lead_captured template', () => {
       body: 'Lena Learner asked about a class A2 licence.',
     });
   });
+
+  it('says "enquired again" for a repeat enquiry', () => {
+    const payload = { leadId, fullName: 'Lena Learner', licenceClass: 'A2', repeated: true };
+    expect(renderNotification('lead_captured', 'push', payload, context)).toEqual({
+      channel: 'push',
+      title: 'Enquiry again',
+      body: 'Lena Learner enquired again about a class A2 licence.',
+    });
+    expect(renderNotification('lead_captured', 'email', payload, context)).toEqual({
+      channel: 'email',
+      subject: 'Lena Learner enquired again',
+      text: 'Lena Learner enquired again about a class A2 licence through Drive Right. The new message is on the lead in DriveOS Leads.',
+    });
+  });
 });
 
 describe('review_request template', () => {

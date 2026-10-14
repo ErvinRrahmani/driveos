@@ -28,6 +28,7 @@ import {
   testAttemptKindSchema,
   testAttemptResultSchema,
 } from './enums.js';
+import { LEAD_CONSENT_TEXT_VERSIONS, MANUAL_LEAD_CONSENT_VERSION } from './school.js';
 
 export const PROGRESS_LEVEL_MIN = 1;
 export const PROGRESS_LEVEL_MAX = 5;
@@ -332,6 +333,17 @@ export const upsertPrivateNoteRequestSchema = z.strictObject({
 });
 export type UpsertPrivateNoteRequest = z.infer<typeof upsertPrivateNoteRequestSchema>;
 
+/** A lead keeps its first enquiry and the newest ones up to this many. */
+export const LEAD_ENQUIRY_MAX = 50;
+
+/** One enquiry on a lead: the first capture and every repeat within the dedupe window. */
+export const leadEnquirySchema = z.object({
+  message: z.string().nullable(),
+  receivedAt: dateTimeSchema,
+  source: leadSourceSchema,
+});
+export type LeadEnquiry = z.infer<typeof leadEnquirySchema>;
+
 export const studentExportBundleSchema = z.object({
   exportedAt: dateTimeSchema,
   student: studentResponseSchema.omit({ guardians: true }),
@@ -397,6 +409,7 @@ export const studentExportBundleSchema = z.object({
       guardianContact: z.string().nullable(),
       consentTextVersion: z.string(),
       consentedAt: dateTimeSchema,
+      enquiries: z.array(leadEnquirySchema),
       note: z.string().nullable(),
       createdAt: dateTimeSchema,
       convertedAt: dateTimeSchema.nullable(),
@@ -431,7 +444,7 @@ const leadFields = {
   guardianName: z.string().trim().min(1).max(LEAD_FULL_NAME_MAX).optional(),
   /** A phone (E.164) or an email: conversion invites the guardian at this contact. */
   guardianContact: z.union([phoneSchema, z.email().max(254)]).optional(),
-  consentTextVersion: z.string().trim().min(1).max(50),
+  consentTextVersion: z.enum(LEAD_CONSENT_TEXT_VERSIONS),
 };
 
 interface LeadContact {
@@ -461,11 +474,19 @@ export const captureLeadRequestSchema = z
 export type CaptureLeadRequest = z.infer<typeof captureLeadRequestSchema>;
 
 export const createLeadRequestSchema = z
-  .strictObject({ ...leadFields, consentTextVersion: leadFields.consentTextVersion.optional() })
+  .strictObject({
+    ...leadFields,
+    consentTextVersion: z
+      .enum([...LEAD_CONSENT_TEXT_VERSIONS, MANUAL_LEAD_CONSENT_VERSION])
+      .optional(),
+  })
   .superRefine(refineLeadContact);
 export type CreateLeadRequest = z.infer<typeof createLeadRequestSchema>;
 
-/** The public form answer: only the id, never the lead's data or version. */
+/**
+ * The public form answer: an opaque id, never the lead's data or version. It is not the stored
+ * lead's id when the enquiry was a repeat or a honeypot hit, so it reveals nothing.
+ */
 export const captureLeadResponseSchema = z.object({ id: z.uuid() });
 export type CaptureLeadResponse = z.infer<typeof captureLeadResponseSchema>;
 
@@ -483,6 +504,9 @@ export const leadSchema = z.object({
   guardianContact: z.string().nullable(),
   consentTextVersion: z.string(),
   consentedAt: dateTimeSchema,
+  /** Every enquiry, oldest first (the first one also fills `message`). */
+  enquiries: z.array(leadEnquirySchema),
+  /** Staff-only notes; enquiries never write here. */
   note: z.string().nullable(),
   studentId: z.uuid().nullable(),
   convertedAt: dateTimeSchema.nullable(),
@@ -508,8 +532,12 @@ export const updateLeadRequestSchema = z
     status: leadStatusSchema.extract(['contacted', 'lost']).optional(),
     note: z.string().trim().max(LEAD_NOTE_MAX).optional(),
     lostReason: z.string().trim().min(1).max(LEAD_LOST_REASON_MAX).optional(),
+    /** The version the client loaded; a mismatch → `409 version_conflict`. */
+    version: z.number().int().positive().optional(),
   })
-  .refine(hasSomeField, { message: NO_FIELDS_MESSAGE })
+  .refine(({ version: _version, ...fields }) => hasSomeField(fields), {
+    message: NO_FIELDS_MESSAGE,
+  })
   .refine((body) => body.lostReason === undefined || body.status === 'lost', {
     message: 'Only with status lost',
     path: ['lostReason'],

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import type { CursorPagination } from '@/hooks/use-cursor-pagination';
 import { useServices } from '@/hooks/use-services';
 import { formatDate } from '@/lib/format';
+import { lastEnquiryAt } from '@/lib/leads';
 import { LeadSourceLabel, LeadStatusBadge } from './lead-badges';
 
 const helper = columnHelperFor<Lead>();
@@ -75,7 +76,8 @@ export function LeadsTable({
           header: t('leads.status'),
           cell: ({ getValue }) => <LeadStatusBadge status={getValue()} />,
         }),
-        helper.accessor('createdAt', {
+        helper.accessor((lead) => lastEnquiryAt(lead), {
+          id: 'received',
           header: t('leads.received'),
           cell: ({ getValue }) => formatDate(getValue()),
         }),

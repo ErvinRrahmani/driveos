@@ -7,6 +7,7 @@ import { useSchoolSwitch } from '../components/use-school-switch';
 import { useSignOut } from '../components/use-sign-out';
 import { useUnsyncedWarning } from '../lib/diary/use-diary';
 import { REVIEW_HREF } from '../lib/push-target';
+import { showsReviewEntry } from '../lib/review-flow';
 import { routeGroupForRoles, selectableMemberships } from '../lib/route-group';
 import { useActiveMembership, useAuthState, useMe } from '../lib/session';
 import { Banner, Button, Card, ListItem, Screen, spacing, Text } from '../ui';
@@ -43,7 +44,7 @@ export function AccountScreen() {
           {user.email ? <Text tone="muted">{user.email}</Text> : null}
         </Card>
       ) : null}
-      {isStudent ? (
+      {isStudent && showsReviewEntry(me.data) ? (
         <ListItem
           title={t('review.title')}
           subtitle={t('review.accountHint')}

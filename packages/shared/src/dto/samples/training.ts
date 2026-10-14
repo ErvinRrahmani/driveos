@@ -13,6 +13,7 @@ import type {
   GuardianLinkListResponse,
   GuardianLinkStatus,
   Lead,
+  LeadEnquiry,
   LeadListResponse,
   LinkGuardianRequest,
   LinkGuardianResponse,
@@ -135,6 +136,12 @@ const testAttempt = {
   notes: '',
 } satisfies TestAttempt;
 
+const leadEnquiry = {
+  message: 'Can I start in November?',
+  receivedAt: '2026-10-10T09:00:00.000Z',
+  source: 'page',
+} satisfies LeadEnquiry;
+
 const lead = {
   id: ids.lead,
   status: 'new',
@@ -149,14 +156,22 @@ const lead = {
   guardianContact: null,
   consentTextVersion: 'lead-consent.v1',
   consentedAt: '2026-10-10T09:00:00.000Z',
+  enquiries: [
+    leadEnquiry,
+    {
+      message: 'Do you also have evening lessons?',
+      receivedAt: '2026-10-12T18:00:00.000Z',
+      source: 'page',
+    },
+  ],
   note: null,
   studentId: null,
   convertedAt: null,
   lostAt: null,
   lostReason: null,
-  version: 1,
+  version: 2,
   createdAt: '2026-10-10T09:00:00.000Z',
-  updatedAt: '2026-10-10T09:00:00.000Z',
+  updatedAt: '2026-10-12T18:00:00.000Z',
 } satisfies Lead;
 
 const leadSamples = {
@@ -178,6 +193,7 @@ const leadSamples = {
     licenceClass: 'A',
     isMinor: false,
   } satisfies CreateLeadRequest,
+  leadEnquiry,
   lead,
   listLeadsQuery: { status: 'new', q: 'lena', limit: 50 } satisfies ListLeadsQuery,
   leadListResponse: {
@@ -191,6 +207,7 @@ const leadSamples = {
         phone: null,
         email: 'lars.lost@example.com',
         message: null,
+        enquiries: [{ message: null, receivedAt: '2026-10-01T08:00:00.000Z', source: 'page' }],
         note: 'Called twice, chose another school.',
         lostAt: '2026-10-09T15:00:00.000Z',
         lostReason: 'Chose another school',
@@ -198,12 +215,13 @@ const leadSamples = {
         updatedAt: '2026-10-09T15:00:00.000Z',
       },
     ],
-    nextCursor: ids.secondLead,
+    nextCursor: `2026-10-09T15:00:00.000000Z_${ids.secondLead}`,
   } satisfies LeadListResponse,
   updateLeadRequest: {
     status: 'lost',
     note: 'Called twice, chose another school.',
     lostReason: 'Chose another school',
+    version: 2,
   } satisfies UpdateLeadRequest,
   convertLeadRequest: {
     dateOfBirth: '2004-05-06',
@@ -439,6 +457,13 @@ const studentExportBundle = {
       guardianContact: null,
       consentTextVersion: 'lead-consent.v1',
       consentedAt: '2026-09-01T09:00:00.000Z',
+      enquiries: [
+        {
+          message: 'Can I start in November?',
+          receivedAt: '2026-09-01T09:00:00.000Z',
+          source: 'page',
+        },
+      ],
       note: null,
       createdAt: '2026-09-01T09:00:00.000Z',
       convertedAt: '2026-09-02T09:00:00.000Z',

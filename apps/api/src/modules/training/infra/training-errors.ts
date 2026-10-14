@@ -11,6 +11,13 @@ export function leadAlreadyConverted(): ConflictError {
   return new ConflictError('lead_already_converted', t('errors.lead_already_converted'));
 }
 
+/** The lead changed since the client loaded it (`PATCH /v1/leads/{id}` with `version`). */
+export function leadVersionConflict(serverVersion: number): ConflictError {
+  return new ConflictError('version_conflict', t('errors.lead_version_conflict'), {
+    serverVersion,
+  });
+}
+
 export function featureNotInPlan(): ApiError {
   return new ApiError(
     StatusCodes.FORBIDDEN,

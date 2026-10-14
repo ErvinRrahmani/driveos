@@ -166,6 +166,12 @@ describe('lead attribution (reporting.school-metrics)', () => {
   const leadId = randomUUID();
   const studentId = randomUUID();
 
+  it('does not count a repeat enquiry (only the lead notifications listen to it)', () => {
+    expect(worker.app.get(SubscriberRegistry).subscribersFor('LeadEnquiryRepeated')).toEqual([
+      'messaging.lead-notifications',
+    ]);
+  });
+
   it('counts a captured lead on the local day of capturedAt', async () => {
     // 22:30 UTC on 4 May is 00:30 on 5 May in Berlin.
     await project(captured(leadId, '2026-05-04T22:30:00.000Z'));

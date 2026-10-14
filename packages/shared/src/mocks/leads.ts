@@ -67,6 +67,7 @@ export function addLead(store: MockStore, schoolId: string, request: NewLead): s
       guardianContact: request.guardianContact ?? null,
       consentTextVersion: request.consentTextVersion,
       consentedAt: now,
+      enquiries: [{ message: request.message ?? null, receivedAt: now, source: request.source }],
       note: null,
       studentId: null,
       convertedAt: null,
@@ -87,7 +88,8 @@ export const leadResolvers: Record<string, MockResolver> = {
       .filter((record) => record.schoolId === schoolId)
       .map((record) => record.value)
       .filter((lead) => matches(lead, context.url.searchParams))
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      // Like the API: the most recently changed first (a repeat enquiry resurfaces), then by id.
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id));
     return { body: page(items, context.url) };
   },
 
@@ -112,6 +114,11 @@ export const leadResolvers: Record<string, MockResolver> = {
     const { schoolId } = requireSchool(context);
     const record = inSchool(context.store.leads, context.params.id, schoolId);
     const request = body<UpdateLeadRequest>(context);
+    if (request.version !== undefined && request.version !== record.version) {
+      fail(StatusCodes.CONFLICT, 'version_conflict', 'Someone else changed this lead.', {
+        serverVersion: record.version,
+      });
+    }
     if (request.status !== undefined && record.value.status === 'converted') alreadyConverted();
     const now = context.store.isoNow();
     const lead = record.value;

@@ -26,10 +26,16 @@ describe('review request (worker)', () => {
   let worker: WorkerTestHarness;
   const current = new Date('2026-07-01T12:00:00Z');
   const clock = { now: () => current };
+  const planId = randomUUID();
 
   beforeAll(async () => {
     db = await createScratchDatabase();
     system = await connect(db.systemUrl);
+    await system.query(
+      `insert into plans (id, code, name, base_amount_minor, student_fee_minor, currency, active, features)
+       values ($1, 'review-pro', 'Pro', 9900, 300, 'EUR', true, '{enrolment_page}')`,
+      [planId],
+    );
     worker = await createWorkerTestHarness(db, [], {}, [
       { provide: NotificationClock, useValue: clock },
     ]);
@@ -46,9 +52,19 @@ describe('review request (worker)', () => {
     await db?.drop();
   });
 
-  async function school(externalReviewUrl: string | null | 'no profile') {
+  async function school(
+    externalReviewUrl: string | null | 'no profile',
+    { feature = true }: { feature?: boolean } = {},
+  ) {
     const fixture = await createSchoolFixture(system);
     await system.query(`insert into school_settings (school_id) values ($1)`, [fixture.schoolId]);
+    if (feature) {
+      await system.query(
+        `insert into subscriptions (id, school_id, plan_id, started_at)
+         values ($1, $2, $3, '2026-01-01T00:00:00Z')`,
+        [randomUUID(), fixture.schoolId, planId],
+      );
+    }
     if (externalReviewUrl !== 'no profile') {
       await system.query(
         `insert into school_public_profiles (school_id, slug, external_review_url)
@@ -197,6 +213,14 @@ describe('review request (worker)', () => {
 
     await publish(fixture, [attempt(studentId)]);
     expect(await rowsOf(fixture)).toEqual(before);
+  });
+
+  it('asks nobody at a school whose plan lacks the enrolment page', async () => {
+    const fixture = await school(EXTERNAL_URL, { feature: false });
+    const studentId = fixture.studentIds[0];
+    await studentLogin(fixture, studentId, true);
+    await publish(fixture, [attempt(studentId)]);
+    expect(await rowsOf(fixture)).toEqual([]);
   });
 
   it('skips a student without a login', async () => {

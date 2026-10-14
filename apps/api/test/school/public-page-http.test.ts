@@ -302,11 +302,19 @@ describe('school public profile and public page', () => {
             creditMinutes: 600,
           },
         ],
-        instructors: [{ membershipId: instructor.membershipId, name: 'Ingo Instructor' }],
+        // Names only: no membership ids on a public page.
+        instructors: [{ name: 'Ingo Instructor' }],
         reviews: { count: 0, averageRatingTenths: 0, items: [] },
         licenceClasses: ['A', 'B'],
         consentTextVersion: 'lead-consent.v1',
       });
+      expect(JSON.stringify(res.body)).not.toContain(instructor.membershipId);
+    });
+
+    it('resolves the slug case-insensitively', async () => {
+      const res = await http.get('/v1/public/schools/School-A');
+      expect(res.status, JSON.stringify(res.body)).toBe(StatusCodes.OK);
+      expect(res.body.slug).toBe('school-a');
     });
 
     it('returns 404 school_not_found for an unknown or unpublished slug', async () => {

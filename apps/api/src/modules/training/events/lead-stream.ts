@@ -5,8 +5,8 @@ import { newEvent, type NewDomainEvent } from '../../../kernel/cqrs/index.js';
 export const LEAD_AGGREGATE = 'lead';
 
 /**
- * Events of one lead. The aggregate version is `leads.version`: a note-only change or a repeat
- * enquiry bumps the row version without an event, so a lead's event versions can have gaps.
+ * Events of one lead. The aggregate version is `leads.version`: a note-only change bumps the row
+ * version without an event, so a lead's event versions can have gaps.
  */
 export class LeadStream {
   readonly events: NewDomainEvent[] = [];
@@ -20,7 +20,7 @@ export class LeadStream {
     return this.current;
   }
 
-  /** A change without an event (note, repeat enquiry). */
+  /** A change without an event (staff note). */
   bump(): void {
     this.current += 1;
   }

@@ -61,7 +61,7 @@ const schoolNotFound = (): never =>
 
 /** The school behind a published page whose plan has the enrolment page, as the API resolves it. */
 function publicSchool(context: MockContext): { schoolId: string; profile: PublicProfile } {
-  const slug = context.params.slug;
+  const slug = context.params.slug?.toLowerCase();
   const found = [...context.store.publicProfiles.entries()].find(
     ([, profile]) => profile.slug === slug,
   );
@@ -102,7 +102,7 @@ function publicPageOf(store: MockStore, schoolId: string, profile: PublicProfile
         membership.status === 'active' &&
         membership.roles.includes('instructor'),
     )
-    .map((membership) => ({ membershipId: membership.id, name: store.userName(membership.userId) }))
+    .map((membership) => ({ name: store.userName(membership.userId) }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const approved = inSchoolValues(store.reviews, schoolId)
     .filter((review) => review.status === 'approved')

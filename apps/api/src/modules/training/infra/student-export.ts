@@ -113,6 +113,7 @@ export class StudentExport {
         guardianContact: lead.guardianContact,
         consentTextVersion: lead.consentTextVersion,
         consentedAt: lead.consentedAt.toISOString(),
+        enquiries: lead.enquiries,
         note: lead.note,
         createdAt: lead.createdAt.toISOString(),
         convertedAt: lead.convertedAt?.toISOString() ?? null,
@@ -227,7 +228,7 @@ export class StudentExport {
       ),
       '',
       t('training.export.leads'),
-      ...bundle.leads.map((lead) =>
+      ...bundle.leads.flatMap((lead) => [
         t('training.export.lead', {
           date: lead.createdAt,
           name: lead.fullName,
@@ -240,7 +241,14 @@ export class StudentExport {
           status: lead.status,
           converted: lead.convertedAt ?? none,
         }),
-      ),
+        ...lead.enquiries.map((enquiry) =>
+          t('training.export.leadEnquiry', {
+            date: enquiry.receivedAt,
+            source: enquiry.source,
+            message: enquiry.message ?? none,
+          }),
+        ),
+      ]),
     ]);
   }
 

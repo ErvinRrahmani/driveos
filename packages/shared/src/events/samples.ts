@@ -204,6 +204,12 @@ export const EVENT_SAMPLES: EventPayloadByType = {
     fullName: 'Lena Lead',
     capturedAt: '2026-10-10T09:00:00.000Z',
   },
+  LeadEnquiryRepeated: {
+    leadId: ids.lead,
+    source: 'page',
+    message: 'Do you also have evening lessons?',
+    repeatedAt: '2026-10-12T18:00:00.000Z',
+  },
   LeadStatusChanged: {
     leadId: ids.lead,
     status: 'contacted',

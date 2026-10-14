@@ -549,6 +549,7 @@ export const REVIEW: SeedRow<typeof schoolReviews> = {
 
 const LEA_CAPTURED_AT = new Date('2026-09-20T17:45:00.000Z');
 const SOFIA_CAPTURED_AT = new Date('2026-09-01T07:30:00.000Z');
+const LEA_MESSAGE = 'Hi! I would like to start in October. Do you offer evening lessons?';
 
 export const LEADS = {
   lea: {
@@ -559,11 +560,15 @@ export const LEADS = {
     phone: '+4915550000020',
     email: 'lea.lead@example.com',
     licenceClass: LICENCE_CLASS,
-    message: 'Hi! I would like to start in October. Do you offer evening lessons?',
+    message: LEA_MESSAGE,
+    enquiries: [
+      { message: LEA_MESSAGE, receivedAt: LEA_CAPTURED_AT.toISOString(), source: 'page' },
+    ],
     isMinor: false,
     consentTextVersion: LEAD_CONSENT_TEXT_VERSION,
     consentedAt: LEA_CAPTURED_AT,
     createdAt: LEA_CAPTURED_AT,
+    updatedAt: LEA_CAPTURED_AT,
   },
   sofia: {
     id: seedId('lead', 2),
@@ -574,6 +579,7 @@ export const LEADS = {
     email: SEED.users.sofia.email,
     licenceClass: LICENCE_CLASS,
     message: null,
+    enquiries: [{ message: null, receivedAt: SOFIA_CAPTURED_AT.toISOString(), source: 'manual' }],
     isMinor: false,
     consentTextVersion: MANUAL_LEAD_CONSENT_VERSION,
     consentedAt: SOFIA_CAPTURED_AT,
@@ -582,6 +588,7 @@ export const LEADS = {
     convertedAt: SEED_AT,
     version: 2, // captured, then converted
     createdAt: SOFIA_CAPTURED_AT,
+    updatedAt: SEED_AT,
   },
 } satisfies Record<string, SeedRow<typeof leads>>;
 

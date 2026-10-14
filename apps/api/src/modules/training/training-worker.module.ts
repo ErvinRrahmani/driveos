@@ -11,6 +11,7 @@ import { Relations } from './infra/relations.js';
 import { StudentListRows } from './infra/student-list.js';
 import { StudentRecords } from './infra/student-records.js';
 import { StudentListProjection } from './projections/student-list.projection.js';
+import { GetLeadHandler } from './queries/get-lead.handler.js';
 import { GetStudentBookingProfileHandler } from './queries/get-student-booking-profile.handler.js';
 import { ListStudentBookingProfilesHandler } from './queries/list-student-booking-profiles.handler.js';
 import { GetStudentByUserHandler } from './queries/get-student-by-user.handler.js';
@@ -44,6 +45,7 @@ import { MembershipStudentLinkSubscriber } from './subscribers/membership-studen
     GetStudentRecipientsHandler,
     ListStudentNamesHandler,
     LeadRecords,
+    GetLeadHandler,
     PurgeLeadsHandler,
     LeadPurgeJob,
   ],

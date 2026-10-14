@@ -43,7 +43,8 @@ export class LeadsController {
   @RequirePermission('leads.read')
   @ApiRoute({
     operationId: 'leads.list',
-    summary: 'Enquiries from the enrolment page and staff, newest first',
+    summary:
+      'Enquiries from the enrolment page and staff, most recently changed first (a repeat enquiry resurfaces its lead)',
     status: StatusCodes.OK,
     query: 'ListLeadsQuery',
     response: 'LeadListResponse',
@@ -63,12 +64,13 @@ export class LeadsController {
     body: 'CreateLeadRequest',
     response: 'CommandResult',
   })
-  create(
+  async create(
     @Body(new ZodValidationPipe(createLeadRequestSchema)) body: CreateLeadRequest,
   ): Promise<CommandResult> {
-    return this.commandBus.execute(
+    const { id, version } = await this.commandBus.execute(
       new CaptureLeadCommand({ source: 'manual', body, requestIpHash: null }),
     );
+    return { id, version };
   }
 
   @Get(':id')
@@ -88,7 +90,8 @@ export class LeadsController {
   @RequirePermission('leads.manage')
   @ApiRoute({
     operationId: 'leads.update',
-    summary: 'Mark a lead contacted or lost, or change its note',
+    summary:
+      'Mark a lead contacted or lost, or change its staff note; with `version`, 409 version_conflict when the lead changed',
     status: StatusCodes.OK,
     params: 'IdParams',
     body: 'UpdateLeadRequest',

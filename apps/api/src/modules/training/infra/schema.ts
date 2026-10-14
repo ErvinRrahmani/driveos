@@ -1,3 +1,4 @@
+import type { LeadEnquiry } from '@driveos/shared';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -6,6 +7,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   smallint,
@@ -249,6 +251,8 @@ export const leads = pgTable(
     guardianContact: text('guardian_contact'),
     consentTextVersion: text('consent_text_version').notNull(),
     consentedAt: tstz('consented_at').notNull(),
+    /** Every enquiry, oldest first (`LeadEnquiry[]`); `note` is staff-only. */
+    enquiries: jsonb('enquiries').$type<LeadEnquiry[]>().notNull().default([]),
     note: text('note'),
     studentId: uuid('student_id').references(() => students.id),
     convertedAt: tstz('converted_at'),
@@ -267,5 +271,6 @@ export const leads = pgTable(
     index('leads_status_created_idx').on(t.schoolId, t.status, t.createdAt.desc()),
     index('leads_email_idx').on(t.schoolId, sql`lower(${t.email})`),
     index('leads_phone_idx').on(t.schoolId, t.phone),
+    index('leads_updated_idx').on(t.schoolId, t.updatedAt.desc(), t.id.desc()),
   ],
 );

@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import type { Lead, LeadListResponse, LeadStatus, ListLeadsQuery } from '@driveos/shared';
-import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, ne, or, sql } from 'drizzle-orm';
-import { notFound } from '../../../kernel/http/errors.js';
-import { idCursor, pageOf } from '../../../kernel/http/paging.js';
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, lt, or, sql } from 'drizzle-orm';
+import { z } from 'zod';
+import { invalidField, notFound } from '../../../kernel/http/errors.js';
+import { pageOf } from '../../../kernel/http/paging.js';
 import { TenantContext } from '../../../kernel/tenant/tenant-context.js';
 import { leads } from './schema.js';
 
@@ -10,6 +11,22 @@ export type LeadRow = typeof leads.$inferSelect;
 export type NewLeadRow = typeof leads.$inferInsert;
 
 const likePattern = (text: string) => `%${text.replace(/[\\%_]/g, (char) => `\\${char}`)}%`;
+
+/** `updated_at` with microseconds (a JS Date keeps only milliseconds), the inbox cursor's key. */
+const UPDATED_AT_TEXT = sql<string>`to_char(${leads.updatedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+const LEAD_CURSOR = z.object({
+  updatedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/),
+  id: z.uuid(),
+});
+
+/** The inbox cursor `<updated_at with microseconds>_<id>` of the last lead on a page. */
+function decodeLeadCursor(cursor: string | undefined): z.infer<typeof LEAD_CURSOR> | undefined {
+  if (cursor === undefined) return undefined;
+  const [updatedAt, id] = cursor.split('_');
+  const parsed = LEAD_CURSOR.safeParse({ updatedAt, id });
+  if (!parsed.success) throw invalidField(['cursor'], 'Unknown cursor');
+  return parsed.data;
+}
 
 export function toLead(row: LeadRow): Lead {
   return {
@@ -26,6 +43,7 @@ export function toLead(row: LeadRow): Lead {
     guardianContact: row.guardianContact,
     consentTextVersion: row.consentTextVersion,
     consentedAt: row.consentedAt.toISOString(),
+    enquiries: row.enquiries,
     note: row.note,
     studentId: row.studentId,
     convertedAt: row.convertedAt?.toISOString() ?? null,
@@ -68,7 +86,10 @@ export class LeadRecords {
     return row;
   }
 
-  /** Open leads created since `since` with the same phone or (lower-cased) email, locked. */
+  /**
+   * Open (`new`/`contacted`) leads created since `since` with the same phone or (lower-cased)
+   * email, locked; `findDuplicate` then compares the names.
+   */
   async lockOpenByContact(
     contact: { phone: string | null; email: string | null },
     since: Date,
@@ -81,7 +102,13 @@ export class LeadRecords {
     return this.tenant.tx
       .select()
       .from(leads)
-      .where(and(or(...byContact), gte(leads.createdAt, since), ne(leads.status, 'lost')))
+      .where(
+        and(
+          or(...byContact),
+          gte(leads.createdAt, since),
+          inArray(leads.status, ['new', 'contacted']),
+        ),
+      )
       .for('update');
   }
 
@@ -93,16 +120,21 @@ export class LeadRecords {
     await this.tenant.tx.update(leads).set(changes).where(eq(leads.id, id));
   }
 
-  /** Newest first (ids are UUIDv7), cursor = last lead id; `q` matches name, phone or email. */
+  /**
+   * Most recently changed first (`updated_at desc, id desc`), so a repeat enquiry brings its lead
+   * back to the top; cursor = `<updated_at>_<id>` of the last lead; `q` matches name, phone or email.
+   */
   async page(params: ListLeadsQuery): Promise<LeadListResponse> {
-    const cursor = idCursor(params.cursor);
+    const cursor = decodeLeadCursor(params.cursor);
     const pattern = params.q ? likePattern(params.q) : undefined;
     const rows = await this.tenant.tx
-      .select()
+      .select({ lead: leads, cursorAt: UPDATED_AT_TEXT })
       .from(leads)
       .where(
         and(
-          cursor ? lt(leads.id, cursor) : undefined,
+          cursor
+            ? sql`(${leads.updatedAt}, ${leads.id}) < (${cursor.updatedAt}::timestamptz, ${cursor.id}::uuid)`
+            : undefined,
           params.status ? eq(leads.status, params.status) : undefined,
           pattern
             ? or(
@@ -113,9 +145,10 @@ export class LeadRecords {
             : undefined,
         ),
       )
-      .orderBy(desc(leads.id))
+      .orderBy(desc(leads.updatedAt), desc(leads.id))
       .limit(params.limit + 1);
-    return pageOf(rows.map(toLead), params.limit, (lead) => lead.id);
+    const page = pageOf(rows, params.limit, (row) => `${row.cursorAt}_${row.lead.id}`);
+    return { items: page.items.map((row) => toLead(row.lead)), nextCursor: page.nextCursor };
   }
 
   /**

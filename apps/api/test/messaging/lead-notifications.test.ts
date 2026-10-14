@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { LeadCaptured } from '@driveos/shared';
+import { LeadCaptured, LeadEnquiryRepeated } from '@driveos/shared';
 import type pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { type DomainEvent, type NewDomainEvent, newEvent } from '../../src/kernel/cqrs/index.js';
@@ -115,6 +115,26 @@ describe('lead notifications (worker)', () => {
     });
   }
 
+  function repeated(leadId: string, aggregateVersion = 2) {
+    return newEvent(LeadEnquiryRepeated, {
+      aggregateType: 'lead',
+      aggregateId: leadId,
+      aggregateVersion,
+      payload: { leadId, source: 'page', message: 'Me again', repeatedAt: current.toISOString() },
+    });
+  }
+
+  async function storedLead(school: SchoolFixture, fullName: string): Promise<string> {
+    const leadId = randomUUID();
+    await system.query(
+      `insert into leads (id, school_id, source, full_name, phone, licence_class, is_minor,
+                          consent_text_version, consented_at, version)
+       values ($1, $2, 'page', $3, '+4915550000020', 'BE', false, 'lead-consent.v1', now(), 2)`,
+      [leadId, school.schoolId, fullName],
+    );
+    return leadId;
+  }
+
   async function publish(
     school: SchoolFixture,
     event: NewDomainEvent,
@@ -207,6 +227,43 @@ describe('lead notifications (worker)', () => {
     const rows = await rowsOf(staff.school);
     expect(rows.map((r) => r.user_id)).not.toContain(staff.office);
     expect(rows).toHaveLength(3);
+  });
+
+  it('tells the same staff when a lead enquires again', async () => {
+    const staff = await staffedSchool();
+    const leadId = await storedLead(staff.school, 'Rita Repeat');
+    await publish(staff.school, repeated(leadId));
+
+    const rows = await rowsOf(staff.school);
+    expect(rows).toHaveLength(4);
+    expect(rows[0]?.payload).toEqual({
+      leadId,
+      fullName: 'Rita Repeat',
+      licenceClass: 'BE',
+      repeated: true,
+    });
+
+    await worker.app.get(NotificationDispatchJob).dispatch(current);
+    expect(worker.push.sent).toContainEqual(
+      expect.objectContaining({
+        token: `ExponentPushToken[${staff.office}]`,
+        title: 'Enquiry again',
+        body: 'Rita Repeat enquired again about a class BE licence.',
+        data: expect.objectContaining({ template: 'lead_captured', leadId }),
+      }),
+    );
+    expect(worker.email.sent).toContainEqual(
+      expect.objectContaining({
+        to: `olga-${staff.tag}@example.com`,
+        subject: 'Rita Repeat enquired again',
+      }),
+    );
+  });
+
+  it('skips a repeat enquiry whose lead is gone', async () => {
+    const staff = await staffedSchool();
+    await publish(staff.school, repeated(randomUUID()));
+    expect(await rowsOf(staff.school)).toEqual([]);
   });
 
   it('holds the push until quiet hours end but emails at once', async () => {
