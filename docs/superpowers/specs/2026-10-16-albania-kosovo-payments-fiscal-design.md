@@ -61,3 +61,12 @@ Buyers: `students` gains `buyer_tax_id` (optional, for business buyers paying fo
 ## 6. Testing
 
 Policy unit tests (numbering, VAT, required fields, PDF content), fiscalisation subscriber with the fake provider (success, retry, deadline alert, corrective), invoice status in API and apps, settings routes with cross-tenant fixtures, the acquirer skeleton end to end with the fake, and a documented "manual acceptance with the certified provider's sandbox" checklist for when credentials exist.
+
+## 7. Decisions from the builder check (my calls)
+
+1. **Per-school merchant accounts.** The acquirer skeleton takes its merchant id and HMAC secret from `school_payment_accounts` (new encrypted `secret_enc` column), not from env. Webhook order: parse the unverified reference → resolve the school with `billing_school_for_payment` → load the school's secret inside the school scope → verify; a bad signature is a 401 recorded in `payment_webhook_failures`. `connectAccount` for this provider stores the credentials the owner types in (no onboarding redirect).
+2. **Signing at issue is supported but optional.** `FiscalizationProvider` gets an optional `signAtIssue(invoice) → issuerRef` used inside the issue transaction when the provider needs DriveOS to sign with the school's certificate (local crypto, fast); `register` runs later in the worker and returns the tax platform's code. Providers that hold the certificate themselves implement only `register`. The certificate upload exists for the first case and is optional.
+3. **Delivery waits for registration.** For schools with fiscalisation on, the `invoice_issued` notification and the PDF download for students and parents wait for `InvoiceFiscalized`; staff can view the pending PDF (watermarked "pending fiscal registration").
+4. **Production before a provider exists:** `school_fiscal_settings.status` is `off` by default (invoices `not_required`). Switching to `on` requires complete settings and a non-fake provider; the fake provider refuses to start in production. With `on` and incomplete settings, issuing is blocked with 409 `fiscal_settings_incomplete` so a school never issues unregistrable invoices.
+5. **Business buyers:** a payment may carry `buyer: { companyName, taxId, address }`; it is snapshotted as the invoice buyer. No e-invoice delivery to companies in this design.
+6. **Kosovo:** `not_required` by default; cash receipts stay on the school's fiscal device outside DriveOS until the obligations are confirmed; documented in OPERATIONS §9.

@@ -26,7 +26,7 @@ Non-goals
 - Add `sq.json` next to each `en.json`; register `sq` in the three i18n setups (`supportedLngs`, `resources`); mobile `pickLanguage` recognises `sq`; admin initialises from the session.
 - `users.locale` already exists; `PATCH /v1/me` is new (identity), accepts `{ locale }` only; `MembershipDirectory.localesOf` already feeds the dispatcher.
 - Albanian plural rules are simple (one/other) and i18next handles them; keys with counts use `_one`/`_other`.
-- Invoice PDFs: the invoice policy's `translate` gets the school locale; the PDF text keys get Albanian values.
+- Invoice PDFs: the language is fixed when the invoice is issued and stored on the invoice (`invoices.locale` = the school locale at issue); the PDF always renders in that language.
 - Translation process: the English file is the source of truth; `sq.json` is generated the first time from a glossary-driven translation pass and then hand-reviewed by a native speaker (Ervin) in a single review file (`docs/i18n/sq-review.md` listing every key with en/sq side by side, sorted by screen). Later changes add keys in both files in the same commit (the parity test enforces it).
 
 ## 4. Decisions taken (my calls)
@@ -38,3 +38,11 @@ Non-goals
 ## 5. Testing
 
 Parity tests in all three apps; snapshot tests of a few rendered notifications and one invoice PDF in `sq`; a Playwright mock scenario that switches the admin to Albanian and checks the navigation labels; a mobile flow test for `pickLanguage(['sq-AL'])`.
+
+## 6. Decisions from the builder check (my calls)
+
+1. **`users.locale` becomes nullable** and is set only by an explicit choice (`PATCH /v1/me`). Existing rows are set to null by the migration; invitation acceptance no longer writes `'en'`. Fallback chain: user choice → (mobile) device language → school locale → `en`. Stored values are limited to `en` | `sq` (zod enum); `localeSchema` for schools becomes the same enum and the school settings form a select.
+2. **Invoices store their language** (`invoices.locale`, school locale at issue); PDFs render in it regardless of who downloads.
+3. **API error messages:** the clients send `Accept-Language` (admin: the active language; mobile: the picked language; public page: the school locale from the page response). The API resolves the request language from that header (`en` default), and `t()` uses it through a request-scoped language in `TenantContext`; handlers keep calling `t()` unchanged. Codes stay the contract; clients keep their code-based mapping where it exists.
+4. **Leads store `consent_locale`** (`en` | `sq`) next to `consent_text_version`; the consent key stays one per version, translated.
+5. **Review loop:** `docs/i18n/sq-review.md` is generated (read-only, side by side); edits go straight into the three `sq.json` files. `sq` is selectable in dev and test from day one; production exposes it through `SUPPORTED_LOCALES` (env, default `en`) until the native and legal review is done.

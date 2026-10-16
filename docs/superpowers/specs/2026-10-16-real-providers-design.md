@@ -68,3 +68,12 @@ OPERATIONS §5 (env table), a new §13 "Providers" (how to get credentials: Expo
 ## 6. Testing
 
 Each real adapter is tested against recorded HTTP fixtures (nock) for success, invalid recipient/token, rate limit and server error paths; the fake adapters remain the default in tests. Webhook verification tests use Stripe's signing scheme with a test secret. Boot validation tests for each provider's env. The notification dispatcher tests gain the `skipped`-on-invalid-recipient case. An opt-in live smoke script per provider (`pnpm --filter @driveos/api providers:smoke`) that sends one push/SMS/email and creates one Stripe test checkout when credentials are present.
+
+## 7. Decisions from the builder check (my calls)
+
+1. **Stripe failure mapping:** only `checkout.session.expired` maps to `payment.failed`; `payment_intent.payment_failed` is ignored (a declined card does not end the session; the learner can retry).
+2. **`account.updated`:** a new definer function `school_for_payment_account(provider, account_ref)`; the payment-webhook controller routes account events to a school command `UpdatePaymentAccountStatus(schoolId, status)` in the school scope; `charges_enabled` true → `active`, false → `pending`. Added to SPEC §6.2 and the definer test.
+3. **Refunds settle on confirmation.** `IssueRefund` writes the refund row `pending` and calls the provider; the ledger entry and credit note are written when the refund is confirmed (`refund.updated` succeeded → `SettleRefund`), or immediately when the provider returns `succeeded` synchronously (the fake). A failed refund marks the row `failed`, writes nothing else, and notifies the office. This is a billing change: refund tests move to the two-step flow.
+4. **Outages reschedule, they do not fail.** A thrown provider error (and an open circuit) reschedules the notification with backoff (1, 5, 30 minutes; 3 attempts) while `skipAfter` allows; only then `failed`. Invalid recipient/token is `skipped` at once.
+5. **Health:** the providers block goes on the platform-admin alerts endpoint, not the public health route; error counts are kept in Redis per provider and summed across processes.
+6. **Expo receipts:** `push_tickets` is a tenant table in messaging (`school_id, notification_id, device_id, ticket_id, created_at`); the 15-minute job runs per school through `PerSchoolJobs`; a `DeviceNotRegistered` receipt appends `DeviceTokenInvalidated` with the stored `notificationId`.
